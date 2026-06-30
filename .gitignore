@@ -16,3 +16,12 @@ tsconfig.tsbuildinfo
 *.ntvs*
 *.njsproj
 *.sln
+
+**/.venv/
+**/__pycache__/
+**.pyc
+*.py[cod]
+*.debug.log
+*.private.txt
+scripts/**/.browser-profile/
+test/**/.browser-profile/

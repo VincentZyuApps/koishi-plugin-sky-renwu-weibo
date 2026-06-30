@@ -1,0 +1,9 @@
+import { h } from 'koishi'
+import type { DailyResult } from '../weibo'
+import { bufferToDataUrl } from './shared'
+import { formatDailyText } from './text'
+
+export function formatDailyTextWithImage(result: DailyResult) {
+  const images = result.imageBuffers.map((image) => h.image(bufferToDataUrl(image))).join('')
+  return `${formatDailyText(result)}${images}`
+}
