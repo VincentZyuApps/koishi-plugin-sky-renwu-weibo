@@ -14,7 +14,7 @@ export const MSG_FORM = {
   TEXT_WITH_IMAGE: 'text-with-image',
   TEXT: 'text',
   FORWARD: 'forward',
-  IMAGE: 'image',
+  PUPPETEER_IMAGE: 'puppeteer-image',
 } as const
 
 export type MsgFormType = typeof MSG_FORM[keyof typeof MSG_FORM]
@@ -114,10 +114,10 @@ export const Config: Schema<Config> = Schema.intersect([
         Schema.const(MSG_FORM.TEXT_WITH_IMAGE).description('📄➕🖼️ 图文'),
         Schema.const(MSG_FORM.TEXT).description('📄 纯文字'),
         Schema.const(MSG_FORM.FORWARD).description('📦 图文合并转发'),
-        Schema.const(MSG_FORM.IMAGE).description('🖼️ Puppeteer 卡片图'),
+        Schema.const(MSG_FORM.PUPPETEER_IMAGE).description('🖼️ Puppeteer 卡片图'),
       ]),
     )
-      .default([MSG_FORM.TEXT_WITH_IMAGE])
+      .default([MSG_FORM.FORWARD, MSG_FORM.PUPPETEER_IMAGE])
       .role('checkbox')
       .description([
         '📤 选择每日任务的发送形式，可多选',

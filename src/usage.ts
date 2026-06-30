@@ -21,12 +21,23 @@ export const usage = `
   <a href="https://forum.koishi.xyz/t/topic/xxxxx" target="_blank">
     <img src="https://img.shields.io/badge/Koishi%20Forum-xxxxx-5546A3?style=for-the-badge&logo=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Ff%2Ff3%2FKoishi.js_Logo.png&logoColor=white" alt="Koishi Forum">
   </a>
-  <a href="https://qm.qq.com/q/xxxxx" target="_blank">
-    <img src="https://img.shields.io/badge/QQ群-xxxxx-12B7F5?style=flat-square&logo=qq&logoColor=white" alt="QQ群">
+  <a href="https://qm.qq.com/q/ZN7fxZ3qCq" target="_blank">
+    <img src="https://img.shields.io/badge/QQ群-1085190201-12B7F5?style=flat-square&logo=qq&logoColor=white" alt="QQ群">
   </a>
 </p>
 
+<h2>💬 交流反馈</h2>
+<p>🐛 Bug 反馈 / 💡 建议 / 👨‍💻 插件开发交流，欢迎加群：</p>
+<p><del>💬 插件使用问题 / 🐛 Bug反馈 / 👨‍💻 插件开发交流，欢迎加入QQ群：<b>259248174</b>   🎉（这个群G了）</del></p>
+<p>💬 插件使用问题 / 🐛 Bug反馈 / 👨‍💻 插件开发交流，欢迎加入QQ群：<b>1085190201</b> 🎉</p>
+<p>💡 在群里直接艾特我，回复的更快哦~ ✨</p>
+
+
 <p>通过微博 Ajax 获取光遇国服每日任务，默认数据源为 <code>@今天游离翻车了吗</code>。</p>
+
+<blockquote>
+  🙏 特别感谢微博博主 <code>@今天游离翻车了吗</code> 多年来稳定更新光遇每日任务内容。这个插件只是做自动化获取和转发，真正持续维护每日攻略内容的是博主本人。
+</blockquote>
 
 <h3>📌 指令</h3>
 
@@ -39,6 +50,10 @@ export const usage = `
 <h3>🔐 微博 Cookie</h3>
 
 <p>微博接口通常需要登录 Cookie。可以运行仓库内的辅助脚本打开浏览器手动登录：</p>
+
+<p>由于安全原因，插件不会内置任何微博登录 Cookie，也不建议把 Cookie 写进源码、README、issue 或聊天记录中。请自行登录微博并获取自己的 Cookie。</p>
+
+<p>由于浏览器安全策略和跨域限制，Koishi Console 页面暂时无法直接读取 <code>weibo.com</code> 的登录 Cookie，因此获取 Cookie 的流程目前没有内置到浏览器 WebUI 中。后续如果找到更稳定、安全的实现方式，可能会在新版本中提供更方便的获取流程。</p>
 
 <pre>
 <code>python scripts/20260630/weibo_cookie.py --browser "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"</code>
@@ -54,7 +69,7 @@ export const usage = `
   <li>🖼️ <b>Puppeteer 卡片图</b>：把文字和微博图片排版成一张圆角卡片图。</li>
 </ul>
 
-<p><code>image</code> 模式需要启用 Koishi 的 <code>puppeteer</code> 服务；未启用时插件会跳过该发送形式。</p>
+<p><code>puppeteer-image</code> 模式需要启用 Koishi 的 <code>puppeteer</code> 服务；未启用时插件会跳过该发送形式。</p>
 
 <h3>⚙️ 过滤器设置</h3>
 

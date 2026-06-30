@@ -1,5 +1,5 @@
 import type { DailyResult } from '../weibo'
-import { addForwardNode, bufferToDataUrl, getBotName } from './shared'
+import { addForwardNode, bufferToDataUrl, getBotName } from './common'
 
 export function formatDailyForward(
   result: DailyResult,

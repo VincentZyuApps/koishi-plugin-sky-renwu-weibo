@@ -22,6 +22,7 @@ export function apply(ctx: Context, config: ConfigType) {
   })
 
   ctx.command(config.commandName, '获取光遇国服每日任务')
+    .alias('今日光遇国服')
     .action(async ({ session }) => {
       if (!session) return
 

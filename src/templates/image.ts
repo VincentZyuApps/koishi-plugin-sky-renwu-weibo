@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'fs'
 import type { Config } from '../config'
 import type { DailyResult } from '../weibo'
 import { resolveRuntimeFontPath } from '../utils'
-import { bufferToDataUrl } from './shared'
+import { bufferToDataUrl } from './common'
 
 export async function renderDailyImage(
   ctx: Context,

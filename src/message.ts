@@ -44,8 +44,8 @@ export async function sendDailyResult(
     )
   }
 
-  if (shouldSendMode(logger, msgForms, MSG_FORM.IMAGE, !!result.text || result.imageBuffers.length > 0)) {
-    await sendWithModeGuard(logger, MSG_FORM.IMAGE, async () => {
+  if (shouldSendMode(logger, msgForms, MSG_FORM.PUPPETEER_IMAGE, !!result.text || result.imageBuffers.length > 0)) {
+    await sendWithModeGuard(logger, MSG_FORM.PUPPETEER_IMAGE, async () => {
       if (!ctx.puppeteer) {
         logger.warn('跳过 Puppeteer 卡片图: 当前 Koishi 未启用 puppeteer 服务。')
         return
