@@ -1,0 +1,22 @@
+{
+  "name": "koishi-plugin-sky-renwu-weibo",
+  "description": "通过爬取微博光遇博主游离 获取光遇每日任务捏",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "scripts": {},
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin"
+  ],
+  "devDependencies": {},
+  "peerDependencies": {
+    "koishi": "^4.18.7"
+  }
+}
