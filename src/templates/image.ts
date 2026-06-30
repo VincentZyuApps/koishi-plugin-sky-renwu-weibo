@@ -102,14 +102,14 @@ ${fontFace}
       border-radius: 999px;
       background: rgba(92, 212, 249, 0.18);
       color: #1487a9;
-      font-size: 15px;
+      font-size: 20px;
       font-weight: 700;
     }
 
     .title {
       margin-top: 14px;
       color: #1a8fb4;
-      font-size: 42px;
+      font-size: 58px;
       line-height: 1.12;
       font-weight: 800;
       text-shadow: 0 2px 12px rgba(92, 212, 249, 0.24);
@@ -118,7 +118,7 @@ ${fontFace}
     .date {
       margin-top: 10px;
       color: #317f98;
-      font-size: 18px;
+      font-size: 24px;
       font-weight: 600;
     }
 
@@ -138,7 +138,7 @@ ${fontFace}
 
     .daily-text {
       color: #145d78;
-      font-size: 20px;
+      font-size: 28px;
       line-height: 1.62;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
@@ -146,7 +146,7 @@ ${fontFace}
 
     .image-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1fr);
       gap: 14px;
     }
 
@@ -169,7 +169,7 @@ ${fontFace}
       border-radius: 12px;
       color: #2f7891;
       background: rgba(92, 212, 249, 0.11);
-      font-size: 15px;
+      font-size: 20px;
       line-height: 1.5;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
@@ -177,7 +177,7 @@ ${fontFace}
 
     .empty {
       color: #4f91a6;
-      font-size: 18px;
+      font-size: 24px;
       text-align: center;
       padding: 20px;
       border-radius: 14px;
