@@ -1,7 +1,8 @@
 const pkg = require('../package.json')
 
 export const usage = `
-<h2>📅✅ koishi-plugin-sky-renwu-weibo v${pkg.version}</h2>
+<h1>Koishi 插件：光遇国服每日任务 sky-renwu-weibo</h1>
+<h2>🎯 插件版本：v${pkg.version}</h2>
 
 <p>
   <a href="https://www.npmjs.com/package/koishi-plugin-sky-renwu-weibo" target="_blank">

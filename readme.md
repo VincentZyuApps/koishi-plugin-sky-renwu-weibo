@@ -1,3 +1,5 @@
+![koishi-plugin-sky-renwu-weibo](https://socialify.git.ci/VincentZyuApps/koishi-plugin-sky-renwu-weibo/image?font=Bitter&forks=1&issues=1&language=1&logo=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Ff%2Ff3%2FKoishi.js_Logo.png&name=1&owner=1&pattern=Plus&pulls=1&stargazers=1&theme=Auto)
+
 # koishi-plugin-sky-renwu-weibo
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-sky-renwu-weibo?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-sky-renwu-weibo)
@@ -52,13 +54,10 @@ C:\Program Files\Microsoft\Edge\Application\msedge.exe
 ```bash
 # 🪟 on Windows：使用默认路径自动查找
 python scripts\20260630\weibo_cookie.py
-
 # 🪟 on Windows：也可以使用 --browser 指定浏览器路径
 python scripts\20260630\weibo_cookie.py --browser "C:\Program Files\Google\Chrome\Application\chrome.exe"
-
 # 🐧 on Linux：使用默认路径自动查找
 python scripts/20260630/weibo_cookie.py
-
 # 🐧 on Linux：也可以使用 --browser 指定浏览器路径
 python scripts/20260630/weibo_cookie.py --browser "/usr/bin/google-chrome"
 ```
@@ -68,13 +67,15 @@ python scripts/20260630/weibo_cookie.py --browser "/usr/bin/google-chrome"
 ```text
 scripts/
 └── 20260630/
-    ├── weibo_cookie.py             # 打开有头浏览器，登录微博并导出 Cookie
-    ├── latest.debug.log            # 调试日志，包含本地运行信息
-    ├── weibo_cookie.private.txt    # 需要填入配置项 weiboCookie 的值
-    └── .browser-profile/           # 隔离浏览器用户数据目录，可能包含登录态
+    ├── weibo_cookie.py             # 🌐 打开有头浏览器，登录微博并导出 Cookie
+    ├── latest.debug.log            # 🧾 调试日志，包含本地运行信息
+    ├── weibo_cookie.private.txt    # 🔐 需要填入配置项 weiboCookie 的值
+    └── .browser-profile/           # 🗂️ 隔离浏览器用户数据目录，可能包含登录态
 ```
 
 把 `weibo_cookie.private.txt` 的内容填入 Koishi 插件配置项 `weiboCookie`。
+
+![微博 Cookie 脚本示例](./docs/images/example.get-weibo-cookie-via-python.png)
 
 ## 💬 输出方式
 
@@ -90,6 +91,12 @@ scripts/
 默认启用 `forward` 和 `puppeteer-image`。
 
 `puppeteer-image` 模式需要启用 Koishi 的 `puppeteer` 服务；未启用时插件会跳过该发送形式。`append-puppeteer-image` 按钮行为还需要启用 Koishi `assets` 服务，并确保 `assets` / `server` 的 `selfUrl` 已穿透到公网，否则 QQ 官方 Bot 无法访问图片 URL。
+
+### 🖼️ 效果预览
+
+![Puppeteer 卡片图预览](./docs/images/preview/preview.puppeteer-image.png)
+
+![QQ Markdown 按钮预览](./docs/images/preview/preview.qq-markdown.json-button.png)
 
 ## 🔧 配置项
 
