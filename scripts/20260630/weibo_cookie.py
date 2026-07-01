@@ -13,11 +13,17 @@ import urllib.parse
 import urllib.request
 
 
+# 📌 脚本所在目录。所有临时文件都放在脚本目录下，方便排查和清理。
 SCRIPT_DIR = Path(__file__).resolve().parent
+# 🧾 每次运行都会重写这个日志文件；遇到失败时优先看这里。
 LOG_PATH = SCRIPT_DIR / "latest.debug.log"
+# 🔐 导出的 Cookie 会写到这里。这个文件等同登录凭据，不要提交到 Git。
 COOKIE_PATH = SCRIPT_DIR / "weibo_cookie.private.txt"
+# 🌐 默认打开游离博主主页，登录后更容易确认微博账号状态是否正常。
 TARGET_URL = "https://weibo.com/u/7360748659"
 
+# 🔎 未传入 --browser 时按顺序尝试这些常见浏览器路径。
+# 🪟 Windows 优先找 Chrome / Edge；🐧 Linux 优先找 google-chrome / chromium。
 FALLBACK_BROWSER_PATHS = (
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
     r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
@@ -26,6 +32,10 @@ FALLBACK_BROWSER_PATHS = (
     "/usr/bin/chromium",
 )
 
+# 🎨 彩色输出开关：
+# - 默认只在交互式终端开启颜色。
+# - 设置 NO_COLOR 可关闭颜色。
+# - 设置 FORCE_COLOR 可强制开启颜色，适合某些终端/日志工具。
 STYLE_ENABLED = os.environ.get("NO_COLOR") is None and (
     sys.stdout.isatty() or os.environ.get("FORCE_COLOR")
 )
@@ -42,6 +52,8 @@ MAGENTA = "35"
 CYAN = "36"
 
 
+# 🎛️ 下面这组样式函数只负责终端显示，不影响脚本逻辑。
+# 🧪 如果终端颜色异常，可以先设置 NO_COLOR=1 排除 ANSI 转义问题。
 def styled(text: str, *codes: str) -> str:
     if not STYLE_ENABLED:
         return text
@@ -99,18 +111,21 @@ def print_default_browsers() -> None:
 
 
 def log(message: str) -> None:
+    # 🧾 简单文件日志：只记录关键路径和错误，避免把完整 Cookie 写进日志。
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     with LOG_PATH.open("a", encoding="utf-8") as file:
         file.write(f"[{timestamp}] {message}\n")
 
 
 def find_browser(explicit_path: str | None) -> str:
+    # 🧭 查找顺序：用户手动指定的 --browser 最高优先级，其次才是默认路径。
     candidates = []
     if explicit_path:
         candidates.append(explicit_path)
     candidates.extend(FALLBACK_BROWSER_PATHS)
 
     for candidate in candidates:
+        # 🏠 expanduser 支持 ~/xxx 这种用户目录写法，方便 Linux / macOS 手动指定。
         path = Path(candidate).expanduser()
         if path.is_file():
             return str(path)
@@ -121,11 +136,14 @@ def find_browser(explicit_path: str | None) -> str:
 
 
 def http_json(url: str):
+    # 🌉 Chrome DevTools 提供本地 HTTP JSON 接口，例如 /json/version 和 /json/list。
+    # ⏱️ 这里 timeout 保持较短，方便 wait_for_debugger 快速轮询。
     with urllib.request.urlopen(url, timeout=2) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
 def wait_for_debugger(port: int, timeout: int) -> None:
+    # ⏳ 浏览器启动后 DevTools 端口不会立刻可用，所以这里轮询等待。
     deadline = time.time() + timeout
     last_error = None
     while time.time() < deadline:
@@ -139,6 +157,8 @@ def wait_for_debugger(port: int, timeout: int) -> None:
 
 
 def open_new_tab(port: int, url: str) -> None:
+    # 🪟 某些浏览器启动参数已经能打开目标页；这里额外尝试新开标签页作为兜底。
+    # 🧯 /json/new 在部分浏览器版本上可能不可用，失败时记录日志但不中断流程。
     encoded = urllib.parse.quote(url, safe="")
     try:
         http_json(f"http://127.0.0.1:{port}/json/new?{encoded}")
@@ -147,10 +167,13 @@ def open_new_tab(port: int, url: str) -> None:
 
 
 def get_page_websocket_url(port: int) -> str:
+    # 🔌 /json/list 会列出当前可调试页面，每个页面都有一个 WebSocket 调试地址。
     targets = http_json(f"http://127.0.0.1:{port}/json/list")
+    # 🎯 优先选择 weibo.com 页面，避免读到空白页或浏览器默认页的 Cookie 上下文。
     for target in targets:
         if target.get("type") == "page" and "weibo.com" in target.get("url", ""):
             return target["webSocketDebuggerUrl"]
+    # 🧩 如果还没跳到 weibo.com，也先拿任意 page，后续 CDP 仍可能读到全局 Cookie。
     for target in targets:
         if target.get("type") == "page":
             return target["webSocketDebuggerUrl"]
@@ -158,6 +181,8 @@ def get_page_websocket_url(port: int) -> str:
 
 
 class CdpSocket:
+    # 🧠 这里手写了最小 WebSocket 客户端，只用 Python 标准库，不依赖 websocket-client。
+    # 🔧 只实现 CDP 调用需要的文本帧发送/接收，够用且方便离线运行。
     def __init__(self, websocket_url: str):
         host, port, path = self._parse_url(websocket_url)
         self.sock = socket.create_connection((host, port), timeout=5)
@@ -166,6 +191,7 @@ class CdpSocket:
 
     @staticmethod
     def _parse_url(url: str):
+        # 🔍 CDP 返回的地址一般是 ws://127.0.0.1:9222/devtools/page/xxxx。
         if not url.startswith("ws://"):
             raise ValueError(f"不支持的 WebSocket 地址: {url}")
         without_scheme = url[len("ws://") :]
@@ -179,6 +205,7 @@ class CdpSocket:
         return host, port, "/" + path
 
     def _handshake(self, host: str, port: int, path: str) -> None:
+        # 🤝 WebSocket 握手：按 RFC 6455 发送 Upgrade 请求。
         key = base64.b64encode(os.urandom(16)).decode("ascii")
         request = (
             f"GET {path} HTTP/1.1\r\n"
@@ -195,6 +222,8 @@ class CdpSocket:
             raise RuntimeError("WebSocket 握手失败")
 
     def call(self, method: str, params: dict | None = None):
+        # 📡 CDP 请求格式：{"id": n, "method": "...", "params": {...}}。
+        # 🧾 响应里会带同一个 id；收到其他事件消息时直接跳过。
         call_id = self.next_id
         self.next_id += 1
         payload = json.dumps(
@@ -213,12 +242,14 @@ class CdpSocket:
             return message.get("result", {})
 
     def close(self) -> None:
+        # 🧹 关闭 socket 时忽略系统级异常，避免清理阶段掩盖真正错误。
         try:
             self.sock.close()
         except OSError:
             pass
 
     def _send_frame(self, payload: bytes) -> None:
+        # 📦 客户端发 WebSocket 帧必须 mask，这里手动构造最小文本帧。
         length = len(payload)
         header = bytearray([0x81])
         if length < 126:
@@ -234,6 +265,7 @@ class CdpSocket:
         self.sock.sendall(bytes(header) + mask + masked)
 
     def _recv_frame(self) -> bytes:
+        # 📥 接收服务端文本帧。Chrome CDP 返回的一般是未 mask 的 JSON 文本帧。
         first = self._recv_exact(2)
         opcode = first[0] & 0x0F
         length = first[1] & 0x7F
@@ -251,6 +283,7 @@ class CdpSocket:
         return payload
 
     def _recv_exact(self, size: int) -> bytes:
+        # 🧱 socket.recv 不保证一次拿满指定字节数，所以这里循环读满。
         chunks = bytearray()
         while len(chunks) < size:
             chunk = self.sock.recv(size - len(chunks))
@@ -261,6 +294,10 @@ class CdpSocket:
 
 
 def get_weibo_cookie(port: int) -> str:
+    # 🍪 Cookie 读取流程：
+    # 1. 找到微博页面的 CDP WebSocket 地址。
+    # 2. 启用 Network 域。
+    # 3. 调用 Network.getAllCookies 读取浏览器当前登录态。
     websocket_url = get_page_websocket_url(port)
     cdp = CdpSocket(websocket_url)
     try:
@@ -269,6 +306,7 @@ def get_weibo_cookie(port: int) -> str:
     finally:
         cdp.close()
 
+    # 🧹 只保留 weibo.com 及其子域 Cookie，避免把其他站点 Cookie 混进去。
     cookies = [
         cookie
         for cookie in result.get("cookies", [])
@@ -281,6 +319,7 @@ def get_weibo_cookie(port: int) -> str:
 
 
 def main() -> int:
+    # 🧰 命令行参数尽量保持简单：默认路径可直接运行，排障时再手动指定 browser/port/profile。
     parser = argparse.ArgumentParser(description="打开浏览器登录微博，并导出 weibo.com Cookie。")
     parser.add_argument("--browser", help="Chrome/Edge 可执行文件路径。")
     parser.add_argument("--port", type=int, default=9222, help="Chrome DevTools 调试端口。")
@@ -292,6 +331,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    # 🧾 每次运行清空旧日志，避免把上一次错误和本次错误混在一起看。
     LOG_PATH.write_text("", encoding="utf-8")
     log("脚本启动")
     print_banner()
@@ -303,6 +343,7 @@ def main() -> int:
         else:
             print_default_browsers()
         browser = find_browser(args.browser)
+        # 🗂️ 使用独立 profile，避免污染用户日常浏览器配置，也方便保留微博登录态。
         profile_dir = Path(args.user_data_dir).resolve()
         print(ok("  ✓ 已找到浏览器"))
         print_kv("浏览器", styled(browser, CYAN))
@@ -319,6 +360,7 @@ def main() -> int:
             "--no-default-browser-check",
             TARGET_URL,
         ]
+        # 🧭 只记录浏览器和 profile 路径，不记录 Cookie 内容。
         log(f"使用浏览器: {browser}")
         log(f"用户数据目录: {profile_dir}")
 
@@ -339,6 +381,7 @@ def main() -> int:
         print_step(5, "🍪 读取 weibo.com Cookie")
         print(info("  正在通过本地 DevTools 读取 Cookie..."))
         cookie = get_weibo_cookie(args.port)
+        # 🔐 只把 Cookie 写入 private 文件，不打印完整 Cookie，降低误复制风险。
         COOKIE_PATH.write_text(cookie, encoding="utf-8")
         log(f"Cookie 已保存: {COOKIE_PATH}")
         cookie_count = cookie.count(";") + 1 if cookie else 0
@@ -352,11 +395,13 @@ def main() -> int:
         print()
         return 0
     except KeyboardInterrupt:
+        # 🛑 用户主动 Ctrl+C 取消时返回 130，符合常见终端约定。
         log("用户取消")
         print()
         print(warn("🛑 已取消。"))
         return 130
     except Exception as error:
+        # 🧯 失败时终端只展示摘要，详细信息写入 latest.debug.log。
         log(f"错误: {type(error).__name__}: {error}")
         print()
         print(err(f"❌ 失败：{error}"))
