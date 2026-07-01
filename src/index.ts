@@ -1,4 +1,4 @@
-import { Context } from 'koishi'
+import { Context, h, Session } from 'koishi'
 import { Config, type Config as ConfigType } from './config'
 import { sendDailyResult } from './message'
 import { usage } from './usage'
@@ -26,13 +26,25 @@ export function apply(ctx: Context, config: ConfigType) {
     .action(async ({ session }) => {
       if (!session) return
 
+      let waitingHintMsgId = ''
+
       try {
+        if (config.enableWaitingHint) {
+          waitingHintMsgId = (await session.send(`${getQuotePrefix(session, config)}⏳ 爬取并生成中.... 请耐心等待`))[0]
+        }
+
         const result = await getCachedDailyResult()
         await sendDailyResult(ctx, session, config, result, logger)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         logger.warn(`获取微博每日任务失败: ${message}`)
-        return `获取光遇每日任务失败：${message}`
+        await session.send(`${getQuotePrefix(session, config)}获取光遇每日任务失败：${message}`)
+      } finally {
+        if (waitingHintMsgId) {
+          await session.bot.deleteMessage(session.channelId, waitingHintMsgId).catch((error) => {
+            logger.warn(`撤回等待提示失败: ${error instanceof Error ? error.message : String(error)}`)
+          })
+        }
       }
     })
 
@@ -47,4 +59,8 @@ export function apply(ctx: Context, config: ConfigType) {
     cache = result
     return result
   }
+}
+
+function getQuotePrefix(session: Session, config: ConfigType) {
+  return config.enableQuote && session.messageId ? h.quote(session.messageId) : ''
 }

@@ -95,6 +95,8 @@ scripts/
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
+| `enableQuote` | `boolean` | `true` | bot 发送普通消息时是否引用触发指令；`forward` 合并转发模式不会附带引用 |
+| `enableWaitingHint` | `boolean` | `true` | 是否显示“爬取并生成中.... 请耐心等待”等待提示；所有发送形式完成后会尝试撤回 |
 | `msgFormArr` | `string[]` | `["forward", "puppeteer-image"]` | 每日任务发送形式，可多选：`text-with-image`、`image-with-text`、`text`、`forward`、`puppeteer-image` |
 
 ### 🖼️ Puppeteer 卡片图配置

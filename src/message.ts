@@ -24,18 +24,18 @@ export async function sendDailyResult(
 ) {
   const msgForms = normalizeMsgForms(config)
   if (!msgForms.length) {
-    return session.send('已获取到光遇每日任务，但未选择任何发送形式。')
+    return sendSessionMessage(session, config, '已获取到光遇每日任务，但未选择任何发送形式。')
   }
 
   if (shouldSendMode(logger, msgForms, MSG_FORM.TEXT_WITH_IMAGE, !!result.text || result.imageBuffers.length > 0)) {
     await sendWithModeGuard(logger, MSG_FORM.TEXT_WITH_IMAGE, () =>
-      session.send(formatDailyTextWithImage(result)),
+      sendSessionMessage(session, config, formatDailyTextWithImage(result)),
     )
   }
 
   if (shouldSendMode(logger, msgForms, MSG_FORM.IMAGE_WITH_TEXT, !!result.text || result.imageBuffers.length > 0)) {
     await sendWithModeGuard(logger, MSG_FORM.IMAGE_WITH_TEXT, () =>
-      session.send(formatDailyImageWithText(result)),
+      sendSessionMessage(session, config, formatDailyImageWithText(result)),
     )
   }
 
@@ -47,7 +47,7 @@ export async function sendDailyResult(
 
   if (shouldSendMode(logger, msgForms, MSG_FORM.TEXT, !!result.text)) {
     await sendWithModeGuard(logger, MSG_FORM.TEXT, () =>
-      session.send(formatDailyText(result)),
+      sendSessionMessage(session, config, formatDailyText(result)),
     )
   }
 
@@ -59,9 +59,17 @@ export async function sendDailyResult(
       }
 
       const imageBase64 = await renderDailyImage(ctx, result, config)
-      await session.send(h.image(`data:image/${config.imageType};base64,${imageBase64}`))
+      await sendSessionMessage(session, config, h.image(`data:image/${config.imageType};base64,${imageBase64}`))
     })
   }
+}
+
+function sendSessionMessage(session: Session, config: Config, content: unknown) {
+  return session.send(`${getQuotePrefix(session, config)}${String(content)}`)
+}
+
+function getQuotePrefix(session: Session, config: Config) {
+  return config.enableQuote && session.messageId ? h.quote(session.messageId) : ''
 }
 
 function shouldSendMode(

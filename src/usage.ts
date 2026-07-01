@@ -71,6 +71,7 @@ export const usage = `
 </ul>
 
 <p><code>puppeteer-image</code> 模式需要启用 Koishi 的 <code>puppeteer</code> 服务；未启用时插件会跳过该发送形式。</p>
+<p>开启 <code>enableWaitingHint</code> 后，触发指令时会先发送“爬取并生成中.... 请耐心等待”提示，所有发送形式完成后会尝试撤回。开启 <code>enableQuote</code> 后，普通消息会引用触发指令；<code>forward</code> 合并转发模式不会附带引用。</p>
 
 <h3>⚙️ 过滤器设置</h3>
 
@@ -82,6 +83,8 @@ export const usage = `
   <li><code>uid</code>：微博用户 UID，默认 <code>7360748659</code>。</li>
   <li><code>matchPattern</code>：筛选每日任务微博的正则表达式。</li>
   <li><code>cacheMinutes</code>：内存缓存分钟数，避免重复请求微博。</li>
+  <li><code>enableQuote</code>：发送普通消息时是否引用触发指令；合并转发模式除外。</li>
+  <li><code>enableWaitingHint</code>：爬取和生成期间是否发送等待提示，完成后会尝试撤回。</li>
   <li><code>msgFormArr</code>：每日任务发送形式，可多选。</li>
   <li><code>imageType</code>、<code>screenshotQuality</code>、<code>imageWidth</code>：Puppeteer 卡片图相关配置。</li>
   <li><code>useCustomFont</code>、<code>imageFontPath</code>、<code>autoDownloadFont</code>：Puppeteer 卡片图字体路径和自动下载设置。</li>

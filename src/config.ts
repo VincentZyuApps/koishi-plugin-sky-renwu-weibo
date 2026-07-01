@@ -44,6 +44,8 @@ export interface Config {
   // ==================
   // 💬 消息发送配置字段
   // ==================
+  enableQuote: boolean
+  enableWaitingHint: boolean
   msgFormArr: string[]
 
   // ==================
@@ -110,6 +112,12 @@ export const Config: Schema<Config> = Schema.intersect([
   // 💬 消息发送形式配置分组
   // ==================
   Schema.object({
+    enableQuote: Schema.boolean()
+      .default(true)
+      .description('💬 bot 发送消息时，是否引用触发指令的消息。合并转发模式不会附带引用。'),
+    enableWaitingHint: Schema.boolean()
+      .default(true)
+      .description('⏳ 是否启用「爬取并生成中.... 请耐心等待」提示消息。每日任务消息全部发送完成后会尝试撤回。'),
     msgFormArr: Schema.array(
       Schema.union([
         Schema.const(MSG_FORM.TEXT_WITH_IMAGE).description(`【${MSG_FORM.TEXT_WITH_IMAGE}】📄➕🖼️ 先文后图`),
