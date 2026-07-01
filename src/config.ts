@@ -278,9 +278,9 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     verboseSessionLog: Schema.boolean()
       .default(false)
-      .description('💬 是否在会话中输出详细调试信息。当前关键条件不满足提醒会默认输出；此配置预留给后续更细的调试日志。'),
+      .description('💬 是否在会话中输出详细调试信息。关闭时非 QQ 平台的 QQ Markdown 按钮跳过提醒不会发送到会话；开启后会同步发送到会话。'),
     verboseConsoleLog: Schema.boolean()
       .default(false)
-      .description('🧾 是否在控制台输出详细调试信息。当前关键 fallback 提醒会默认输出；开启后会输出缓存、微博抓取、渲染、发送、assets 上传和字体检查细节。'),
+      .description('🧾 是否在控制台输出详细调试信息。关闭时非 QQ 平台的 QQ Markdown 按钮跳过提醒不会输出到控制台；开启后会输出缓存、微博抓取、渲染、发送、assets 上传和字体检查细节。'),
   }).description('🐛 调试配置'),
 ])

@@ -277,8 +277,12 @@ async function notifyQQButtonSkip(
   reason: string,
 ) {
   const message = `QQ Markdown 按钮未发送：${reason}`
-  logger.warn(message)
-  await sendSessionMessage(session, config, message)
+  if (session.platform === 'qq' || config.verboseConsoleLog) {
+    logger.warn(message)
+  }
+  if (session.platform === 'qq' || config.verboseSessionLog) {
+    await sendSessionMessage(session, config, message)
+  }
 }
 
 function debugLog(
