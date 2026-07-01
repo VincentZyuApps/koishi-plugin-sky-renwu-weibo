@@ -17,7 +17,7 @@
 <p>💬 插件使用问题 / 🐛 Bug反馈 / 👨‍💻 插件开发交流，欢迎加入QQ群：<b>1085190201</b> 🎉</p>
 <p>💡 在群里直接艾特我，回复的更快哦~ ✨</p>
 
-🌤️ 通过微博 Ajax 获取光遇国服每日任务捏。默认数据源为微博 `@今天游离翻车了吗`。
+📅✅ 获取微博博主 `@今天游离翻车了吗` 的光遇国服每日任务，支持文字、图片、Puppeteer 卡片图和 QQ Markdown ✨
 
 > 🙏 特别感谢微博博主 `@今天游离翻车了吗` 多年来稳定更新光遇每日任务内容。这个插件只是做自动化获取和转发，真正持续维护每日攻略内容的是博主本人。
 
@@ -74,6 +74,8 @@ scripts/
 ```
 
 把 `weibo_cookie.private.txt` 的内容填入 Koishi 插件配置项 `weiboCookie`。
+
+`weibo_cookie.private.txt`、`latest.debug.log` 和 `.browser-profile` 都包含隐私信息，不要发给别人，也不要提交到 Git。
 
 ![微博 Cookie 脚本示例](./docs/images/example.get-weibo-cookie-via-python.png)
 
@@ -148,27 +150,11 @@ scripts/
 | `autoDownloadFont` | `boolean` | `true` | 是否自动下载并校验默认字体 |
 | `imageFontPath` | `string` | `process.cwd()/data/fonts/LXGWWenKaiMono-Regular.ttf` | Puppeteer 卡片图字体路径；运行时自动映射到 `ctx.baseDir/data/fonts/LXGWWenKaiMono-Regular.ttf` |
 
+Puppeteer 卡片图默认使用 `LXGWWenKaiMono-Regular.ttf`。插件加载时会检查 `ctx.baseDir/data/fonts/LXGWWenKaiMono-Regular.ttf`。字体存在且 hash 校验通过时会跳过下载；缺失或校验失败时会尝试从 Gitee / GitHub 下载。配置项 `useCustomFont=false` 或 `imageFontPath` 为空时会使用系统默认字体。
+
 ### 🐛 调试配置
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `verboseSessionLog` | `boolean` | `false` | 是否在会话中输出详细调试信息；当前关键条件不满足提醒会默认输出，此配置预留给后续更细的调试日志 |
 | `verboseConsoleLog` | `boolean` | `false` | 是否在控制台输出详细调试信息；当前关键 fallback 提醒会默认输出。开启后会输出缓存、微博抓取、渲染、发送、assets 上传和字体检查细节 |
-
-## ⚙️ 过滤器设置
-
-如果你的 Koishi 环境启用了过滤器，请确认该插件允许接收目标频道 / 群聊 / 平台消息。否则插件可能已经加载，但命令不会触发。
-
-## 🔤 字体缓存
-
-Puppeteer 卡片图默认使用 `LXGWWenKaiMono-Regular.ttf`。插件加载时会检查：
-
-```text
-ctx.baseDir/data/fonts/LXGWWenKaiMono-Regular.ttf
-```
-
-字体存在且 hash 校验通过时会跳过下载；缺失或校验失败时会尝试从 Gitee / GitHub 下载。配置项 `useCustomFont=false` 或 `imageFontPath` 为空时会使用系统默认字体。
-
-## ⚠️ 注意
-
-`weibo_cookie.private.txt`、`latest.debug.log` 和 `.browser-profile` 都包含隐私信息，不要发给别人，也不要提交到 Git。
