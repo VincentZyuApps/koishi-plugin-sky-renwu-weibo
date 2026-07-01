@@ -1,4 +1,4 @@
-![koishi-plugin-sky-renwu-weibo](https://socialify.git.ci/VincentZyuApps/koishi-plugin-sky-renwu-weibo/image?font=Bitter&forks=1&issues=1&language=1&logo=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Ff%2Ff3%2FKoishi.js_Logo.png&name=1&owner=1&pattern=Plus&pulls=1&stargazers=1&theme=Auto)
+![koishi-plugin-sky-renwu-weibo](https://socialify.git.ci/VincentZyuApps/koishi-plugin-sky-renwu-weibo/image?description=1&font=Bitter&forks=1&issues=1&language=1&logo=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Ff%2Ff3%2FKoishi.js_Logo.png&name=1&owner=1&pattern=Plus&pulls=1&stargazers=1&theme=Auto)
 
 # koishi-plugin-sky-renwu-weibo
 
@@ -8,18 +8,37 @@
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/VincentZyuApps/koishi-plugin-sky-renwu-weibo)
 [![Gitee](https://img.shields.io/badge/Gitee-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/vincent-zyu/koishi-plugin-sky-renwu-weibo)
 
-[![Koishi Forum](https://img.shields.io/badge/Koishi%20Forum-xxxxx-5546A3?style=for-the-badge&logo=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Ff%2Ff3%2FKoishi.js_Logo.png&logoColor=white)](https://forum.koishi.xyz/t/topic/xxxxx)
-[![QQ群](https://img.shields.io/badge/QQ群-1085190201-12B7F5?style=flat-square&logo=qq&logoColor=white)](https://qm.qq.com/q/ZN7fxZ3qCq)
+[![Koishi Forum](https://img.shields.io/badge/Koishi%20Forum-12627-5546A3?style=for-the-badge&logo=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Ff%2Ff3%2FKoishi.js_Logo.png&logoColor=white)](https://forum.koishi.xyz/t/topic/12627)
+[![awa群-zyu建的qq群](https://img.shields.io/badge/awa群_zyu建的qq群-1085190201-12B7F5?style=flat-square&logo=qq&logoColor=white)](https://qm.qq.com/q/ZN7fxZ3qCq)
+[![光遇Bot群](https://img.shields.io/badge/光遇Bot群-475328908-D63A4D?style=flat-square&logo=qq&logoColor=white)](https://qm.qq.com/q/oVxZoksppK)
 
 <h2>💬 交流反馈</h2>
 <p>🐛 Bug 反馈 / 💡 建议 / 👨‍💻 插件开发交流，欢迎加群：</p>
 <p><del>💬 插件使用问题 / 🐛 Bug反馈 / 👨‍💻 插件开发交流，欢迎加入QQ群：<b>259248174</b>   🎉（这个群G了）</del></p> 
-<p>💬 插件使用问题 / 🐛 Bug反馈 / 👨‍💻 插件开发交流，欢迎加入QQ群：<b>1085190201</b> 🎉</p>
+<p>💬 插件使用问题 / 🐛 Bug反馈 / 👨‍💻 插件开发交流，欢迎加入 awa群-zyu建的qq群：<b style="color: #12B7F5;">1085190201</b> 🎉</p>
+<p>🤖 光遇 Bot / QQ 官方 Bot / Koishi 相关交流，也欢迎加入光遇 Bot QQ 群：<b style="color: #EA5252;">475328908</b></p>
 <p>💡 在群里直接艾特我，回复的更快哦~ ✨</p>
 
-📅✅ 获取微博博主 `@今天游离翻车了吗` 的光遇国服每日任务，支持文字、图片、Puppeteer 卡片图和 QQ Markdown ✨
+📅✅ 获取微博博主 [`@今天游离翻车了吗`](https://weibo.com/u/7360748659) 的光遇国服每日任务，支持文字、图片、Puppeteer 卡片图和 QQ Markdown ✨
 
-> 🙏 特别感谢微博博主 `@今天游离翻车了吗` 多年来稳定更新光遇每日任务内容。这个插件只是做自动化获取和转发，真正持续维护每日攻略内容的是博主本人。
+> [!IMPORTANT]
+>
+> 🙏 特别感谢微博博主 **[`@今天游离翻车了吗`](https://weibo.com/u/7360748659)** 多年来稳定更新光遇每日任务内容。
+>
+> 这个插件只是做自动化获取和转发，真正持续维护每日攻略内容的是博主本人。
+
+> [!IMPORTANT]
+>
+> 🙏 特别感谢 [github.com/Kaguya233qwq/nonebot_plugin_sky](https://github.com/Kaguya233qwq/nonebot_plugin_sky) 仓库提供的微博爬虫思路参考。
+>
+> 本插件在 TypeScript + Koishi 环境中重新实现相关流程。
+
+> [!TIP]
+>
+> `puppeteer` 和 `assets` 都是**可选服务**，不启用对应功能时不需要安装。
+>
+> - 启用 `puppeteer-image` 卡片图发送形式时，需要启用 Koishi 的 `puppeteer` 服务。
+> - 启用 `append-puppeteer-image` QQ Markdown 按钮行为时，需要启用 Koishi 的 `assets` 服务，并确保 `assets` 的 `selfUrl` 公网可访问，否则 QQ 官方 Bot 无法访问图片 URL。
 
 ## 📌 指令
 
@@ -92,7 +111,7 @@ scripts/
 
 默认启用 `forward` 和 `puppeteer-image`。
 
-`puppeteer-image` 模式需要启用 Koishi 的 `puppeteer` 服务；未启用时插件会跳过该发送形式。`append-puppeteer-image` 按钮行为还需要启用 Koishi `assets` 服务，并确保 `assets` / `server` 的 `selfUrl` 已穿透到公网，否则 QQ 官方 Bot 无法访问图片 URL。
+`puppeteer-image` 模式需要启用 Koishi 的 `puppeteer` 服务；未启用时插件会跳过该发送形式。`append-puppeteer-image` 按钮行为还需要启用 Koishi `assets` 服务，并确保 `assets` 的 `selfUrl` 公网可访问，否则 QQ 官方 Bot 无法访问图片 URL。
 
 ### 🖼️ 效果预览
 
@@ -107,7 +126,7 @@ scripts/
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `commandName` | `string` | `"今日国服"` | 触发命令名称 |
-| `uid` | `string` | `"7360748659"` | 微博用户 UID，默认是 `@今天游离翻车了吗` |
+| `uid` | `string` | `"7360748659"` | 微博用户 UID，默认是 [`@今天游离翻车了吗`](https://weibo.com/u/7360748659) |
 | `authorName` | `string` | `"今天游离翻车了吗"` | 来源作者显示名，会展示在数据来源署名里 |
 | `weiboCookie` | `string` | `""` | 微博登录 Cookie，必填；可用 `scripts/20260630/weibo_cookie.py` 导出 |
 | `matchPattern` | `string` | 默认正则 | 筛选每日任务微博的正则表达式，微博文案格式变化时可调整 |

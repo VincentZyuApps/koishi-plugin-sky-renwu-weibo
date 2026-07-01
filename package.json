@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-sky-renwu-weibo",
   "description": "📅✅ 获取微博博主 @今天游离翻车了吗 的光遇国服每日任务，支持文字、图片、Puppeteer 卡片图和 QQ Markdown ✨",
-  "version": "0.1.14-beta.6+20260702",
+  "version": "0.1.14-beta.9+20260702",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
