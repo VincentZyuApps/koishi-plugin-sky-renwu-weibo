@@ -61,7 +61,8 @@ scripts/
 
 插件配置项 `msgFormArr` 支持多选：
 
-- 📄➕🖼️ `text-with-image`：图文，一条消息内发送微博长文本和全部图片
+- 📄➕🖼️ `text-with-image`：先文后图，一条消息内先发送微博长文本，再发送全部图片
+- 🖼️➕📄 `image-with-text`：先图后文，一条消息内先发送全部图片，再发送微博长文本
 - 📄 `text`：纯文字，只发送微博长文本、数据来源和原文链接
 - 📦 `forward`：图文合并转发，把文字和图片打包进 OneBot 合并转发
 - 🖼️ `puppeteer-image`：Puppeteer 卡片图，把文字和微博图片排版成一张圆角卡片图
@@ -94,7 +95,7 @@ scripts/
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `msgFormArr` | `string[]` | `["forward", "puppeteer-image"]` | 每日任务发送形式，可多选：`text-with-image`、`text`、`forward`、`puppeteer-image` |
+| `msgFormArr` | `string[]` | `["forward", "puppeteer-image"]` | 每日任务发送形式，可多选：`text-with-image`、`image-with-text`、`text`、`forward`、`puppeteer-image` |
 
 ### 🖼️ Puppeteer 卡片图配置
 

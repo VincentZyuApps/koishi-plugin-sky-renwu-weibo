@@ -12,6 +12,7 @@ import { DEFAULT_LXGW_WENKAI_PATH } from './utils'
 /** 💬 每日任务消息发送形式 */
 export const MSG_FORM = {
   TEXT_WITH_IMAGE: 'text-with-image',
+  IMAGE_WITH_TEXT: 'image-with-text',
   TEXT: 'text',
   FORWARD: 'forward',
   PUPPETEER_IMAGE: 'puppeteer-image',
@@ -111,20 +112,22 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     msgFormArr: Schema.array(
       Schema.union([
-        Schema.const(MSG_FORM.TEXT_WITH_IMAGE).description('📄➕🖼️ 图文'),
-        Schema.const(MSG_FORM.TEXT).description('📄 纯文字'),
-        Schema.const(MSG_FORM.FORWARD).description('📦 图文合并转发'),
-        Schema.const(MSG_FORM.PUPPETEER_IMAGE).description('🖼️ Puppeteer 卡片图'),
+        Schema.const(MSG_FORM.TEXT_WITH_IMAGE).description(`【${MSG_FORM.TEXT_WITH_IMAGE}】📄➕🖼️ 先文后图`),
+        Schema.const(MSG_FORM.IMAGE_WITH_TEXT).description(`【${MSG_FORM.IMAGE_WITH_TEXT}】🖼️➕📄 先图后文 <i>(适合qq官方bot)</i>`),
+        Schema.const(MSG_FORM.TEXT).description(`【${MSG_FORM.TEXT}】📄 纯文字`),
+        Schema.const(MSG_FORM.FORWARD).description(`【${MSG_FORM.FORWARD}】📦 图文合并转发 <i>(只适合 OneBot 平台)</i>`),
+        Schema.const(MSG_FORM.PUPPETEER_IMAGE).description(`【${MSG_FORM.PUPPETEER_IMAGE}】🖼️ Puppeteer 卡片图 <i>(适合任何平台)</i>`),
       ]),
     )
       .default([MSG_FORM.FORWARD, MSG_FORM.PUPPETEER_IMAGE])
       .role('checkbox')
       .description([
         '📤 选择每日任务的发送形式，可多选',
-        '📄➕🖼️ 图文：一条消息内发送微博长文本和全部图片',
+        '📄➕🖼️ 先文后图：一条消息内先发送微博长文本，再发送全部图片',
+        '🖼️➕📄 先图后文：一条消息内先发送全部图片，再发送微博长文本',
         '📄 纯文字：只发送微博长文本、数据来源和原文链接',
-        '📦 图文合并转发：把文字和图片打包进 OneBot 合并转发',
-        '🖼️ Puppeteer 卡片图：把文字和微博图片排版成圆角卡片图',
+        '📦 图文合并转发：把文字和图片打包进 OneBot 合并转发，只适合 OneBot 平台',
+        '🖼️ Puppeteer 卡片图：把文字和微博图片排版成圆角卡片图，适合任何平台',
       ].join('<br/>')),
   }).description('💬 消息发送形式配置'),
 

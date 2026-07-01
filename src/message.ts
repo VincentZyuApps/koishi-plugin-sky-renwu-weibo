@@ -2,7 +2,8 @@ import { Context, h, Session } from 'koishi'
 import { MSG_FORM, type Config } from './config'
 import type { DailyResult } from './weibo'
 import { formatDailyForward } from './templates/forward'
-import { renderDailyImage } from './templates/image'
+import { formatDailyImageWithText } from './templates/image-with-text'
+import { renderDailyImage } from './templates/puppeteer-image'
 import { formatDailyText } from './templates/text'
 import { formatDailyTextWithImage } from './templates/text-with-image'
 
@@ -29,6 +30,12 @@ export async function sendDailyResult(
   if (shouldSendMode(logger, msgForms, MSG_FORM.TEXT_WITH_IMAGE, !!result.text || result.imageBuffers.length > 0)) {
     await sendWithModeGuard(logger, MSG_FORM.TEXT_WITH_IMAGE, () =>
       session.send(formatDailyTextWithImage(result)),
+    )
+  }
+
+  if (shouldSendMode(logger, msgForms, MSG_FORM.IMAGE_WITH_TEXT, !!result.text || result.imageBuffers.length > 0)) {
+    await sendWithModeGuard(logger, MSG_FORM.IMAGE_WITH_TEXT, () =>
+      session.send(formatDailyImageWithText(result)),
     )
   }
 
