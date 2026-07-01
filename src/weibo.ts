@@ -29,6 +29,7 @@ interface WeiboPost {
 
 export interface DailyResult {
   text: string
+  imageUrls: string[]
   imageBuffers: Buffer[]
   sourceUrl?: string
   fetchedAt: number
@@ -59,19 +60,25 @@ export async function fetchChineseServerDaily(
   logger?: ReturnType<Context['logger']>,
 ): Promise<DailyResult> {
   const posts = await fetchUserPosts(client, config.uid)
+  debugLog(logger, config, `微博列表拉取完成: count=${posts.length}`)
   const pattern = new RegExp(config.matchPattern)
   const post = posts.find((item) => isTodayInBeijing(item.createdAt) && pattern.test(item.textRaw))
 
   if (!post) {
+    debugLog(logger, config, '未匹配到今日每日任务微博')
     return {
       text: '【国服】今日任务还未更新',
+      imageUrls: [],
       imageBuffers: [],
       fetchedAt: Date.now(),
     }
   }
 
+  debugLog(logger, config, `匹配到每日任务微博: mblogid=${post.mblogid}, imageUrls=${post.imageUrls.length}, url=${post.url}`)
   const longText = await fetchLongText(client, post.mblogid)
+  debugLog(logger, config, `微博长文拉取完成: hasLongText=${Boolean(longText)}, length=${(longText || '').length}`)
   const imageBuffers = await fetchImages(client, post.imageUrls, logger)
+  debugLog(logger, config, `微博图片下载完成: success=${imageBuffers.length}, total=${post.imageUrls.length}`)
   const text = [
     longText || post.textRaw || '【国服】今日任务还未更新',
     '------------',
@@ -81,6 +88,7 @@ export async function fetchChineseServerDaily(
 
   return {
     text,
+    imageUrls: post.imageUrls,
     imageBuffers,
     sourceUrl: post.url,
     fetchedAt: Date.now(),
@@ -170,4 +178,14 @@ function formatBeijingDate(date: Date) {
     month: '2-digit',
     day: '2-digit',
   }).format(date)
+}
+
+function debugLog(
+  logger: ReturnType<Context['logger']> | undefined,
+  config: Config,
+  message: string,
+) {
+  if (config.verboseConsoleLog) {
+    logger?.info(`[debug] ${message}`)
+  }
 }

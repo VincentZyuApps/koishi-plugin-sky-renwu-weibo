@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 import time
 import base64
 import socket
@@ -24,6 +25,77 @@ FALLBACK_BROWSER_PATHS = (
     "/usr/bin/google-chrome",
     "/usr/bin/chromium",
 )
+
+STYLE_ENABLED = os.environ.get("NO_COLOR") is None and (
+    sys.stdout.isatty() or os.environ.get("FORCE_COLOR")
+)
+
+RESET = "0"
+BOLD = "1"
+DIM = "2"
+ITALIC = "3"
+RED = "31"
+GREEN = "32"
+YELLOW = "33"
+BLUE = "34"
+MAGENTA = "35"
+CYAN = "36"
+
+
+def styled(text: str, *codes: str) -> str:
+    if not STYLE_ENABLED:
+        return text
+    return f"\033[{';'.join(codes)}m{text}\033[0m"
+
+
+def title(text: str) -> str:
+    return styled(text, BOLD, CYAN)
+
+
+def ok(text: str) -> str:
+    return styled(text, BOLD, GREEN)
+
+
+def warn(text: str) -> str:
+    return styled(text, BOLD, YELLOW)
+
+
+def err(text: str) -> str:
+    return styled(text, BOLD, RED)
+
+
+def info(text: str) -> str:
+    return styled(text, BLUE)
+
+
+def hint(text: str) -> str:
+    return styled(text, DIM)
+
+
+def emphasis(text: str) -> str:
+    return styled(text, BOLD, ITALIC)
+
+
+def print_banner() -> None:
+    print()
+    print(title("✨ 微博 Cookie 导出助手"))
+    print(hint("   手动登录微博后，脚本会通过本地 Chrome DevTools 读取 weibo.com Cookie。"))
+    print(hint("   Cookie 是登录凭据，请只保存在本机，不要发给别人。"))
+    print()
+
+
+def print_step(index: int, message: str) -> None:
+    print(f"{styled(f'[{index}]', BOLD, MAGENTA)} {message}")
+
+
+def print_kv(label: str, value: object) -> None:
+    print(f"  {styled(label + ':', BOLD)} {value}")
+
+
+def print_default_browsers() -> None:
+    print(hint("  未传入 --browser，正在按下面的默认路径依次查找："))
+    for candidate in FALLBACK_BROWSER_PATHS:
+        print(hint(f"  - {candidate}"))
 
 
 def log(message: str) -> None:
@@ -222,11 +294,23 @@ def main() -> int:
 
     LOG_PATH.write_text("", encoding="utf-8")
     log("脚本启动")
+    print_banner()
 
     try:
+        print_step(1, "🔎 查找可用浏览器")
+        if args.browser:
+            print_kv("指定路径", styled(args.browser, CYAN))
+        else:
+            print_default_browsers()
         browser = find_browser(args.browser)
         profile_dir = Path(args.user_data_dir).resolve()
+        print(ok("  ✓ 已找到浏览器"))
+        print_kv("浏览器", styled(browser, CYAN))
+
+        print_step(2, "📁 准备隔离浏览器用户数据目录")
         profile_dir.mkdir(parents=True, exist_ok=True)
+        print_kv("用户数据目录", styled(str(profile_dir), CYAN))
+
         command = [
             browser,
             f"--remote-debugging-port={args.port}",
@@ -238,31 +322,46 @@ def main() -> int:
         log(f"使用浏览器: {browser}")
         log(f"用户数据目录: {profile_dir}")
 
+        print_step(3, "🚀 启动浏览器并打开微博页面")
+        print_kv("目标页面", styled(TARGET_URL, CYAN))
+        print_kv("调试端口", styled(str(args.port), CYAN))
         process = subprocess.Popen(command)
+        print(info("  ⏳ 正在等待浏览器调试端口就绪..."))
         wait_for_debugger(args.port, args.timeout)
         open_new_tab(args.port, TARGET_URL)
+        print(ok("  ✓ 浏览器已打开"))
 
-        print("浏览器已打开。请在浏览器里手动登录微博，并确认已打开游离博主主页。")
-        print("登录完成后回到这里按 Enter；直接 Ctrl+C 可取消。")
+        print_step(4, "🧭 请在浏览器里完成微博登录")
+        print(warn("  请手动登录微博，并确认页面已打开游离博主主页。"))
+        print(f"  {emphasis('登录完成后回到这里按 Enter。')} {hint('直接 Ctrl+C 可取消。')}")
         input()
 
+        print_step(5, "🍪 读取 weibo.com Cookie")
+        print(info("  正在通过本地 DevTools 读取 Cookie..."))
         cookie = get_weibo_cookie(args.port)
         COOKIE_PATH.write_text(cookie, encoding="utf-8")
         log(f"Cookie 已保存: {COOKIE_PATH}")
-        print(f"已保存 Cookie 到: {COOKIE_PATH}")
-        print("这个文件包含登录凭据，不要发给别人，也不要提交到 Git。")
+        cookie_count = cookie.count(";") + 1 if cookie else 0
+        print(ok("  ✓ Cookie 导出成功"))
+        print_kv("Cookie 数量", styled(str(cookie_count), GREEN))
+        print_kv("保存位置", styled(str(COOKIE_PATH), CYAN))
+        print(warn("  ⚠ 这个文件包含登录凭据，不要发给别人，也不要提交到 Git。"))
 
         if process.poll() is None:
-            print("浏览器保持打开。确认 Cookie 可用后可以手动关闭。")
+            print(hint("  浏览器保持打开。确认 Cookie 可用后可以手动关闭。"))
+        print()
         return 0
     except KeyboardInterrupt:
         log("用户取消")
-        print("已取消。")
+        print()
+        print(warn("🛑 已取消。"))
         return 130
     except Exception as error:
         log(f"错误: {type(error).__name__}: {error}")
-        print(f"失败：{error}")
-        print(f"调试日志: {LOG_PATH}")
+        print()
+        print(err(f"❌ 失败：{error}"))
+        print_kv("调试日志", styled(str(LOG_PATH), CYAN))
+        print(hint("  如果没有自动找到浏览器，可以使用 --browser 参数手动指定 Chrome / Edge 路径。"))
         return 1
 
 

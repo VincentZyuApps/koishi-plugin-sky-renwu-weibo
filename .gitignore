@@ -21,7 +21,10 @@ tsconfig.tsbuildinfo
 **/__pycache__/
 **.pyc
 *.py[cod]
+
+**/.browser-profile/
 *.debug.log
 *.private.txt
-scripts/**/.browser-profile/
-test/**/.browser-profile/
+
+**/tmp/
+**/temp/

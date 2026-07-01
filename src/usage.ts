@@ -56,43 +56,10 @@ export const usage = `
 <p>由于浏览器安全策略和跨域限制，Koishi Console 页面暂时无法直接读取 <code>weibo.com</code> 的登录 Cookie，因此获取 Cookie 的流程目前没有内置到浏览器 WebUI 中。后续如果找到更稳定、安全的实现方式，可能会在新版本中提供更方便的获取流程。</p>
 
 <pre>
-<code>python scripts/20260630/weibo_cookie.py --browser "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"</code>
+<code>python scripts/20260630/weibo_cookie.py --browser "chrome浏览器可执行文件路径"</code>
 </pre>
 
 <p>登录完成后，脚本会生成 <code>scripts/20260630/weibo_cookie.private.txt</code>，把文件内容填入插件配置项 <code>weiboCookie</code>。</p>
-
-<h3>💬 发送形式</h3>
-<ul>
-  <li>📄➕🖼️ <b>先文后图</b>：一条消息内先发送微博长文本，再发送全部图片。</li>
-  <li>🖼️➕📄 <b>先图后文</b>：一条消息内先发送全部图片，再发送微博长文本。</li>
-  <li>📄 <b>纯文字</b>：只发送微博长文本、数据来源和原文链接。</li>
-  <li>📦 <b>图文合并转发</b>：把文字和图片打包进 OneBot 合并转发。</li>
-  <li>🖼️ <b>Puppeteer 卡片图</b>：把文字和微博图片排版成一张圆角卡片图。</li>
-</ul>
-
-<p><code>puppeteer-image</code> 模式需要启用 Koishi 的 <code>puppeteer</code> 服务；未启用时插件会跳过该发送形式。</p>
-<p>开启 <code>enableWaitingHint</code> 后，触发指令时会先发送“爬取并生成中.... 请耐心等待”提示，所有发送形式完成后会尝试撤回。开启 <code>enableQuote</code> 后，普通消息会引用触发指令；<code>forward</code> 合并转发模式不会附带引用。</p>
-
-<h3>⚙️ 过滤器设置</h3>
-
-<p>如果你的 Koishi 环境启用了过滤器，请确认该插件允许接收目标频道 / 群聊 / 平台消息。否则插件可能已经加载，但命令不会触发。</p>
-
-<h3>🔧 配置项</h3>
-
-<ul>
-  <li><code>uid</code>：微博用户 UID，默认 <code>7360748659</code>。</li>
-  <li><code>matchPattern</code>：筛选每日任务微博的正则表达式。</li>
-  <li><code>cacheMinutes</code>：内存缓存分钟数，避免重复请求微博。</li>
-  <li><code>enableQuote</code>：发送普通消息时是否引用触发指令；合并转发模式除外。</li>
-  <li><code>enableWaitingHint</code>：爬取和生成期间是否发送等待提示，完成后会尝试撤回。</li>
-  <li><code>msgFormArr</code>：每日任务发送形式，可多选。</li>
-  <li><code>imageType</code>、<code>screenshotQuality</code>、<code>imageWidth</code>：Puppeteer 卡片图相关配置。</li>
-  <li><code>useCustomFont</code>、<code>imageFontPath</code>、<code>autoDownloadFont</code>：Puppeteer 卡片图字体路径和自动下载设置。</li>
-</ul>
-
-<h3>🔤 字体缓存</h3>
-
-<p>Puppeteer 卡片图默认使用 <code>LXGWWenKaiMono-Regular.ttf</code>。插件加载时会检查 <code>ctx.baseDir/data/fonts</code>，字体存在且 hash 校验通过时会跳过下载；缺失或校验失败时会尝试从 Gitee / GitHub 下载。关闭 <code>useCustomFont</code> 后将使用系统默认字体。</p>
 
 <h3>⚠️ 注意</h3>
 

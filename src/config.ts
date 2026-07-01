@@ -1,4 +1,5 @@
 import { Schema } from 'koishi'
+import { DEFAULT_QQ_MARKDOWN_KEYBOARD, stringifyCompact } from './qq'
 import { DEFAULT_LXGW_WENKAI_PATH } from './utils'
 
 // ================================
@@ -16,9 +17,32 @@ export const MSG_FORM = {
   TEXT: 'text',
   FORWARD: 'forward',
   PUPPETEER_IMAGE: 'puppeteer-image',
+  QQ_MARKDOWN: 'qq-markdown',
 } as const
 
 export type MsgFormType = typeof MSG_FORM[keyof typeof MSG_FORM]
+
+/** 🤖 QQ Markdown 文案整理模式 */
+export const QQ_MARKDOWN_MODE = {
+  STRUCTURED: 'structured',
+  BLOCKQUOTE: 'blockquote',
+} as const
+
+export type QQMarkdownModeType = typeof QQ_MARKDOWN_MODE[keyof typeof QQ_MARKDOWN_MODE]
+
+/** 🔘 QQ Markdown 按钮发送行为 */
+export const QQ_MARKDOWN_BUTTON_MODE = {
+  STANDALONE: 'standalone',
+  APPEND_QQ_MARKDOWN: 'append-qq-markdown',
+  APPEND_PUPPETEER_IMAGE: 'append-puppeteer-image',
+} as const
+
+export type QQMarkdownButtonModeType = typeof QQ_MARKDOWN_BUTTON_MODE[keyof typeof QQ_MARKDOWN_BUTTON_MODE]
+
+export interface MsgFormEntry {
+  mode: MsgFormType
+  enabled: boolean
+}
 
 // ====================
 // 📋 配置接口定义
@@ -46,7 +70,15 @@ export interface Config {
   // ==================
   enableQuote: boolean
   enableWaitingHint: boolean
-  msgFormArr: string[]
+  msgFormArr: Array<MsgFormType | MsgFormEntry>
+  strictOrderMode: boolean
+
+  // ==================
+  // 🤖 QQ 官方 Bot Markdown 配置字段
+  // ==================
+  qqMarkdownMode: QQMarkdownModeType
+  qqMarkdownButtonMode: QQMarkdownButtonModeType[]
+  qqMarkdownKeyboardJson: string
 
   // ==================
   // 🖼️ Puppeteer 卡片图配置字段
@@ -55,8 +87,14 @@ export interface Config {
   screenshotQuality: number
   imageWidth: number
   useCustomFont: boolean
-  imageFontPath: string
   autoDownloadFont: boolean
+  imageFontPath: string
+
+  // ==================
+  // 🐛 调试配置字段
+  // ==================
+  verboseSessionLog: boolean
+  verboseConsoleLog: boolean
 }
 
 // ====================
@@ -117,27 +155,85 @@ export const Config: Schema<Config> = Schema.intersect([
       .description('💬 bot 发送消息时，是否引用触发指令的消息。合并转发模式不会附带引用。'),
     enableWaitingHint: Schema.boolean()
       .default(true)
-      .description('⏳ 是否启用「爬取并生成中.... 请耐心等待」提示消息。每日任务消息全部发送完成后会尝试撤回。'),
-    msgFormArr: Schema.array(
-      Schema.union([
-        Schema.const(MSG_FORM.TEXT_WITH_IMAGE).description(`【${MSG_FORM.TEXT_WITH_IMAGE}】📄➕🖼️ 先文后图`),
-        Schema.const(MSG_FORM.IMAGE_WITH_TEXT).description(`【${MSG_FORM.IMAGE_WITH_TEXT}】🖼️➕📄 先图后文 <i>(适合qq官方bot)</i>`),
-        Schema.const(MSG_FORM.TEXT).description(`【${MSG_FORM.TEXT}】📄 纯文字`),
-        Schema.const(MSG_FORM.FORWARD).description(`【${MSG_FORM.FORWARD}】📦 图文合并转发 <i>(只适合 OneBot 平台)</i>`),
-        Schema.const(MSG_FORM.PUPPETEER_IMAGE).description(`【${MSG_FORM.PUPPETEER_IMAGE}】🖼️ Puppeteer 卡片图 <i>(适合任何平台)</i>`),
-      ]),
-    )
-      .default([MSG_FORM.FORWARD, MSG_FORM.PUPPETEER_IMAGE])
-      .role('checkbox')
+      .description('⏳ 是否启用「获取并生成中.... 请耐心等待」提示消息。每日任务消息全部发送完成后会尝试撤回。'),
+    msgFormArr: Schema.array(Schema.object({
+      mode: Schema.union([
+        Schema.const(MSG_FORM.TEXT_WITH_IMAGE).description(`【${MSG_FORM.TEXT_WITH_IMAGE}】先文后图 (一条消息内先发送微博长文本，再发送全部图片)`),
+        Schema.const(MSG_FORM.IMAGE_WITH_TEXT).description(`【${MSG_FORM.IMAGE_WITH_TEXT}】先图后文 (一条消息内先发送全部图片，再发送微博长文本)`),
+        Schema.const(MSG_FORM.TEXT).description(`【${MSG_FORM.TEXT}】纯文字 (只发送微博长文本、数据来源和原文链接)`),
+        Schema.const(MSG_FORM.FORWARD).description(`【${MSG_FORM.FORWARD}】图文合并转发 (把文字和图片打包进 OneBot 合并转发)`),
+        Schema.const(MSG_FORM.PUPPETEER_IMAGE).description(`【${MSG_FORM.PUPPETEER_IMAGE}】Puppeteer 卡片图 (把文字和微博图片排版成圆角卡片图)`),
+        Schema.const(MSG_FORM.QQ_MARKDOWN).description(`【${MSG_FORM.QQ_MARKDOWN}】QQ Markdown (只有 QQ 官方 Bot 平台能用)`),
+      ])
+        .role('radio')
+        .description('发送形式'),
+      enabled: Schema.boolean()
+        .default(true)
+        .description('是否启用'),
+    }))
+      .role('table')
+      .default([
+        { mode: MSG_FORM.TEXT_WITH_IMAGE, enabled: false },
+        { mode: MSG_FORM.IMAGE_WITH_TEXT, enabled: false },
+        { mode: MSG_FORM.TEXT, enabled: false },
+        { mode: MSG_FORM.FORWARD, enabled: true },
+        { mode: MSG_FORM.PUPPETEER_IMAGE, enabled: true },
+        { mode: MSG_FORM.QQ_MARKDOWN, enabled: true },
+      ])
       .description([
-        '📤 选择每日任务的发送形式，可多选',
-        '📄➕🖼️ 先文后图：一条消息内先发送微博长文本，再发送全部图片',
-        '🖼️➕📄 先图后文：一条消息内先发送全部图片，再发送微博长文本',
-        '📄 纯文字：只发送微博长文本、数据来源和原文链接',
-        '📦 图文合并转发：把文字和图片打包进 OneBot 合并转发，只适合 OneBot 平台',
-        '🖼️ Puppeteer 卡片图：把文字和微博图片排版成圆角卡片图，适合任何平台',
+        '每日任务发送形式表格，可调整顺序，可启用 / 禁用',
+        `【${MSG_FORM.TEXT_WITH_IMAGE}】先文后图 (一条消息内先发送微博长文本，再发送全部图片)`,
+        `【${MSG_FORM.IMAGE_WITH_TEXT}】先图后文 (一条消息内先发送全部图片，再发送微博长文本)`,
+        `【${MSG_FORM.TEXT}】纯文字 (只发送微博长文本、数据来源和原文链接)`,
+        `【${MSG_FORM.FORWARD}】图文合并转发 (把文字和图片打包进 OneBot 合并转发，只适合 OneBot 平台)`,
+        `【${MSG_FORM.PUPPETEER_IMAGE}】Puppeteer 卡片图 (把文字和微博图片排版成圆角卡片图，适合任何平台)`,
+        `【${MSG_FORM.QQ_MARKDOWN}】QQ Markdown (发送 QQ 官方 Bot Markdown 正文消息，只有 QQ 官方 Bot 平台能用)`,
+        '⚠️ 如果启用了多个相同发送形式，只有第一个会生效',
+      ].join('<br/>')),
+    strictOrderMode: Schema.boolean()
+      .experimental()
+      .default(true)
+      .description([
+        '是否严格按照上表顺序串行发送',
+        '✅ 开启：按表格顺序逐个发送，顺序稳定，Puppeteer 渲染不会和其他发送形式抢资源',
+        '❌ 关闭：多个发送形式并行发送，速度可能更快，但发送顺序不保证',
       ].join('<br/>')),
   }).description('💬 消息发送形式配置'),
+
+  // ==================
+  // 🤖 QQ 官方 Bot Markdown 适配配置分组
+  // ==================
+  Schema.object({
+    qqMarkdownMode: Schema.union([
+      Schema.const(QQ_MARKDOWN_MODE.STRUCTURED).description(`【${QQ_MARKDOWN_MODE.STRUCTURED}】按正则整理段落 (尝试识别标题、任务条目和来源信息，排版更清晰)`),
+      Schema.const(QQ_MARKDOWN_MODE.BLOCKQUOTE).description(`【${QQ_MARKDOWN_MODE.BLOCKQUOTE}】全文引用块 (把所有原文逐行放进 > 引用块)`),
+    ])
+      .role('radio')
+      .default(QQ_MARKDOWN_MODE.STRUCTURED)
+      .description([
+        'QQ Markdown 文案整理模式',
+        `【${QQ_MARKDOWN_MODE.STRUCTURED}】按正则整理段落 (尝试识别标题、任务条目和来源信息，排版更清晰)`,
+        `【${QQ_MARKDOWN_MODE.BLOCKQUOTE}】全文引用块 (简单粗暴地把所有原文逐行放进 > 引用块)`,
+      ].join('<br/>')),
+    qqMarkdownButtonMode: Schema.array(Schema.union([
+      Schema.const(QQ_MARKDOWN_BUTTON_MODE.STANDALONE).description(`【${QQ_MARKDOWN_BUTTON_MODE.STANDALONE}】单独发送 JSON 按钮消息 (固定发送“## 光遇任务操作按钮”并附带按钮)`),
+      Schema.const(QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN).description(`【${QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN}】挂在 QQ Markdown 后面 (必须启用 qq-markdown 发送形式)`),
+      Schema.const(QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE).description(`【${QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE}】挂在 Puppeteer 卡片图后面 (必须启用 puppeteer-image 发送形式，并启用 Koishi assets 服务)`),
+    ]))
+      .role('checkbox')
+      .default([QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN, QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE])
+      .description([
+        'QQ Markdown 按钮发送行为，可多选',
+        `【${QQ_MARKDOWN_BUTTON_MODE.STANDALONE}】单独发送 JSON 按钮消息 (固定发送“## 光遇任务操作按钮”并附带按钮)`,
+        `【${QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN}】挂在 QQ Markdown 后面 (必须启用 qq-markdown 发送形式)`,
+        `【${QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE}】挂在 Puppeteer 卡片图后面 (必须启用 puppeteer-image 发送形式，并启用 Koishi assets 服务)`,
+        '不想发送 QQ 按钮时保持空选即可。条件不满足时只提醒，不自动补发。',
+      ].join('<br/>')),
+    qqMarkdownKeyboardJson: Schema.string()
+      .role('textarea', { rows: [5, 10] })
+      .default(stringifyCompact(DEFAULT_QQ_MARKDOWN_KEYBOARD))
+      .description('📋 QQ Markdown 按钮 JSON 配置。支持变量 <code>${commandName}</code>；JSON 解析失败时会自动退回默认按钮。'),
+  }).description('🤖 QQ 官方 Bot Markdown 适配'),
 
   // ==================
   // 🖼️ Puppeteer 卡片图配置分组
@@ -167,12 +263,24 @@ export const Config: Schema<Config> = Schema.intersect([
     useCustomFont: Schema.boolean()
       .default(true)
       .description('🔤 是否使用自定义字体路径。关闭后 Puppeteer 卡片图使用系统默认字体，并跳过默认字体下载。'),
+    autoDownloadFont: Schema.boolean()
+      .default(true)
+      .description('📥 插件启动时自动检查并下载 LXGWWenKaiMono-Regular.ttf。字体存在且 hash 校验通过时会跳过下载。'),
     imageFontPath: Schema.string()
       .role('textarea', { rows: [2, 4] })
       .default(DEFAULT_LXGW_WENKAI_PATH)
       .description('🔤 Puppeteer 卡片图字体路径。默认展示 process.cwd()/data/fonts/LXGWWenKaiMono-Regular.ttf；运行时自动映射到 ctx.baseDir/data/fonts/LXGWWenKaiMono-Regular.ttf。留空则使用系统默认字体。'),
-    autoDownloadFont: Schema.boolean()
-      .default(true)
-      .description('📥 插件启动时自动检查并下载 LXGWWenKaiMono-Regular.ttf。字体存在且 hash 校验通过时会跳过下载。'),
   }).description('🖼️ Puppeteer 卡片图配置'),
+
+  // ==================
+  // 🐛 调试配置分组
+  // ==================
+  Schema.object({
+    verboseSessionLog: Schema.boolean()
+      .default(false)
+      .description('💬 是否在会话中输出详细调试信息。当前关键条件不满足提醒会默认输出；此配置预留给后续更细的调试日志。'),
+    verboseConsoleLog: Schema.boolean()
+      .default(false)
+      .description('🧾 是否在控制台输出详细调试信息。当前关键 fallback 提醒会默认输出；开启后会输出缓存、微博抓取、渲染、发送、assets 上传和字体检查细节。'),
+  }).description('🐛 调试配置'),
 ])

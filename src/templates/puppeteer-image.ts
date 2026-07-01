@@ -6,11 +6,17 @@ import type { DailyResult } from '../weibo'
 import { resolveRuntimeFontPath } from '../utils'
 import { bufferToDataUrl } from './common'
 
+export interface RenderedDailyImage {
+  base64: string
+  width: number
+  height: number
+}
+
 export async function renderDailyImage(
   ctx: Context,
   result: DailyResult,
   config: Config,
-) {
+): Promise<RenderedDailyImage> {
   const page = await ctx.puppeteer.page()
 
   try {
@@ -39,7 +45,12 @@ export async function renderDailyImage(
       screenshotOptions.quality = config.screenshotQuality
     }
 
-    return await page.screenshot(screenshotOptions)
+    const base64 = await page.screenshot(screenshotOptions)
+    return {
+      base64,
+      width: config.imageWidth,
+      height: contentHeight,
+    }
   } finally {
     await page.close()
   }

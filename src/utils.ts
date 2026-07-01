@@ -55,13 +55,20 @@ export function resolveRuntimeFontPath(ctx: Context, filePath: string) {
 }
 
 export async function ensureRuntimeFonts(ctx: Context, config: Config) {
-  if (!config.useCustomFont) return
-  if (!config.autoDownloadFont) return
+  if (!config.useCustomFont) {
+    debugLog(ctx, config, '未启用自定义字体，跳过字体预检查')
+    return
+  }
+  if (!config.autoDownloadFont) {
+    debugLog(ctx, config, '未启用自动下载字体，跳过字体下载检查')
+    return
+  }
 
   const fontPath = getLxgwWenKaiPathByBaseDir(ctx.baseDir)
+  debugLog(ctx, config, `开始检查默认字体: ${fontPath}`)
   const ready = await verifyFontIntegrity(fontPath, LXGW_WENKAI_INTEGRITY)
   if (ready) {
-    ctx.logger.info(`[sky-renwu-weibo] 字体文件已存在且 hash 校验通过，跳过下载：${fontPath}`)
+    debugLog(ctx, config, `字体文件已存在且 hash 校验通过，跳过下载: ${fontPath}`)
     return
   }
 
@@ -70,17 +77,18 @@ export async function ensureRuntimeFonts(ctx: Context, config: Config) {
   }
 
   await mkdir(path.dirname(fontPath), { recursive: true })
-  ctx.logger.info(`[sky-renwu-weibo] 准备下载字体：${LXGW_WENKAI_FILE_NAME} -> ${fontPath}`)
+  debugLog(ctx, config, `准备下载字体: ${LXGW_WENKAI_FILE_NAME} -> ${fontPath}`)
 
   let lastError: unknown
   for (const item of LXGW_WENKAI_SOURCES) {
     try {
-      ctx.logger.info(`[sky-renwu-weibo] 从 ${item.source} 下载字体：${item.url}`)
+      debugLog(ctx, config, `从 ${item.source} 下载字体: ${item.url}`)
       const response = await axios.get<ArrayBuffer>(item.url, {
         responseType: 'arraybuffer',
         timeout: 120000,
       })
       const buffer = Buffer.from(response.data)
+      debugLog(ctx, config, `${item.source} 字体下载完成，开始校验: bytes=${buffer.length}`)
       if (!verifyFontBuffer(buffer, LXGW_WENKAI_INTEGRITY)) {
         throw new Error(`字体 hash 校验失败：${LXGW_WENKAI_FILE_NAME}`)
       }
@@ -88,7 +96,7 @@ export async function ensureRuntimeFonts(ctx: Context, config: Config) {
       if (!(await verifyFontIntegrity(fontPath, LXGW_WENKAI_INTEGRITY))) {
         throw new Error(`字体写入后 hash 校验失败：${LXGW_WENKAI_FILE_NAME}`)
       }
-      ctx.logger.info(`[sky-renwu-weibo] 字体下载完成，hash 校验通过：${fontPath} (${buffer.length} bytes)`)
+      debugLog(ctx, config, `字体下载完成，hash 校验通过: ${fontPath} (${buffer.length} bytes)`)
       return
     } catch (error) {
       lastError = error
@@ -125,4 +133,10 @@ function verifyFontBuffer(buffer: Buffer, expected: FontIntegrity): boolean {
     && hashes.sha1 === expected.sha1
     && hashes.sha256 === expected.sha256
     && hashes.sha512 === expected.sha512
+}
+
+function debugLog(ctx: Context, config: Config, message: string) {
+  if (config.verboseConsoleLog) {
+    ctx.logger.info(`[sky-renwu-weibo] [debug] ${message}`)
+  }
 }

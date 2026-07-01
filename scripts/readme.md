@@ -4,10 +4,29 @@
 
 🌐 用于打开有头浏览器，手动登录微博后导出 `weibo.com` Cookie。
 
+脚本会优先使用 `--browser` 传入的浏览器路径；如果没有传入，会依次尝试寻找下面这些默认路径：
+
+```text
+C:\Program Files\Google\Chrome\Application\chrome.exe
+C:\Program Files (x86)\Google\Chrome\Application\chrome.exe
+C:\Program Files\Microsoft\Edge\Application\msedge.exe
+/usr/bin/google-chrome
+/usr/bin/chromium
+```
+
+你也可以使用 `--browser` 参数指定浏览器路径。
+
 ```bash
-# 🪟 on Windows
+# 🪟 on Windows：使用默认路径自动查找
+python .\20260630\weibo_cookie.py
+
+# 🪟 on Windows：也可以使用 --browser 指定浏览器路径
 python .\20260630\weibo_cookie.py --browser "C:\Program Files\Google\Chrome\Application\chrome.exe"
-# 🐧 on Linux
+
+# 🐧 on Linux：使用默认路径自动查找
+python ./20260630/weibo_cookie.py
+
+# 🐧 on Linux：也可以使用 --browser 指定浏览器路径
 python ./20260630/weibo_cookie.py --browser "/usr/bin/google-chrome"
 ```
 
