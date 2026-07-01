@@ -52,6 +52,12 @@
 
 微博接口通常需要登录 Cookie。可以运行仓库内的辅助脚本打开有头浏览器，手动登录微博后导出 `weibo.com` Cookie。
 
+> [!IMPORTANT]
+>
+> Cookie 辅助脚本只使用 Python 标准库，不需要安装任何第三方库，也不需要 `pip install`。
+>
+> 建议使用 Python `3.10` - `3.13`，优先推荐和作者同款的 Python `3.13`。脚本使用了 Python 3.10+ 的类型标注语法，Python 3.9 及以下不建议使用。
+
 由于安全原因，插件不会内置任何微博登录 Cookie，也不建议把 Cookie 写进源码、README、issue 或聊天记录中。请自行登录微博并获取自己的 Cookie。
 
 由于浏览器安全策略和跨域限制，Koishi Console 页面暂时无法直接读取 `weibo.com` 的登录 Cookie，因此获取 Cookie 的流程目前没有内置到浏览器 WebUI 中。后续如果找到更稳定、安全的实现方式，可能会在新版本中提供更方便的获取流程。

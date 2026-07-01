@@ -4,6 +4,12 @@
 
 🌐 用于打开有头浏览器，手动登录微博后导出 `weibo.com` Cookie。
 
+> [!IMPORTANT]
+>
+> 这个脚本只使用 Python 标准库，不需要安装任何第三方库，也不需要 `pip install`。
+>
+> 建议使用 Python `3.10` - `3.13`，优先推荐和作者同款的 Python `3.13`。脚本使用了 Python 3.10+ 的类型标注语法，Python 3.9 及以下不建议使用。
+
 ![微博 Cookie 脚本示例](../docs/images/example.get-weibo-cookie-via-python.png)
 
 脚本会优先使用 `--browser` 传入的浏览器路径；如果没有传入，会依次尝试寻找下面这些默认路径：
