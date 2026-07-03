@@ -1,5 +1,6 @@
 import { h, type Context, type Session } from 'koishi'
 import { MSG_FORM, type Config } from '../config'
+import { logInfo } from '../utils/logger'
 import {
   hasAppendQQMarkdownButtonMode,
   hasAppendQQPuppeteerImageButtonMode,
@@ -7,33 +8,33 @@ import {
 } from './button'
 
 export async function notifyQQButtonSkip(
+  ctx: Context,
   session: Session,
   config: Config,
-  logger: ReturnType<Context['logger']>,
   reason: string,
 ) {
   const message = `QQ Markdown 按钮未发送：${reason}`
   if (session.platform === 'qq' || config.verboseConsoleLog) {
-    logger.warn(message)
+    logInfo(ctx, config, message)
   }
-  if (session.platform === 'qq' || config.verboseSessionLog) {
+  if (config.verboseSessionLog) {
     await sendSessionMessage(session, config, message)
   }
 }
 
 export async function notifyInvalidQQButtonModes(
+  ctx: Context,
   session: Session,
   config: Config,
   msgForms: string[],
-  logger: ReturnType<Context['logger']>,
   buttonModes: QQMarkdownButtonMode[],
 ) {
   if (hasAppendQQMarkdownButtonMode(buttonModes) && !msgForms.includes(MSG_FORM.QQ_MARKDOWN)) {
-    await notifyQQButtonSkip(session, config, logger, '按钮行为 append-qq-markdown 需要在消息发送形式表格中启用 qq-markdown。')
+    await notifyQQButtonSkip(ctx, session, config, '按钮行为 append-qq-markdown 需要在消息发送形式表格中启用 qq-markdown。')
   }
 
   if (hasAppendQQPuppeteerImageButtonMode(buttonModes) && !msgForms.includes(MSG_FORM.PUPPETEER_IMAGE)) {
-    await notifyQQButtonSkip(session, config, logger, '按钮行为 append-puppeteer-image 需要在消息发送形式表格中启用 puppeteer-image。')
+    await notifyQQButtonSkip(ctx, session, config, '按钮行为 append-puppeteer-image 需要在消息发送形式表格中启用 puppeteer-image。')
   }
 }
 

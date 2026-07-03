@@ -5,7 +5,7 @@ import path from 'path'
 import axios from 'axios'
 import type { Context } from 'koishi'
 import type { Config } from '../config'
-import { debugLog } from './logger'
+import { logInfo } from './logger'
 
 export const LXGW_WENKAI_FILE_NAME = 'LXGWWenKaiMono-Regular.ttf'
 
@@ -57,39 +57,39 @@ export function resolveRuntimeFontPath(ctx: Context, filePath: string) {
 
 export async function ensureRuntimeFonts(ctx: Context, config: Config) {
   if (!config.useCustomFont) {
-    debugLog(ctx, config, '未启用自定义字体，跳过字体预检查')
+    logInfo(ctx, config, '', '未启用自定义字体，跳过字体预检查')
     return
   }
   if (!config.autoDownloadFont) {
-    debugLog(ctx, config, '未启用自动下载字体，跳过字体下载检查')
+    logInfo(ctx, config, '', '未启用自动下载字体，跳过字体下载检查')
     return
   }
 
   const fontPath = getLxgwWenKaiPathByBaseDir(ctx.baseDir)
-  debugLog(ctx, config, `开始检查默认字体: ${fontPath}`)
+  logInfo(ctx, config, '', `开始检查默认字体: ${fontPath}`)
   const ready = await verifyFontIntegrity(fontPath, LXGW_WENKAI_INTEGRITY)
   if (ready) {
-    debugLog(ctx, config, `字体文件已存在且 hash 校验通过，跳过下载: ${fontPath}`)
+    logInfo(ctx, config, '', `字体文件已存在且 hash 校验通过，跳过下载: ${fontPath}`)
     return
   }
 
   if (existsSync(fontPath)) {
-    ctx.logger('sky-renwu-weibo').warn(`[sky-renwu-weibo] ${LXGW_WENKAI_FILE_NAME} hash 校验失败，将重新下载`)
+    logInfo(ctx, config, `[sky-renwu-weibo] ${LXGW_WENKAI_FILE_NAME} hash 校验失败，将重新下载`)
   }
 
   await mkdir(path.dirname(fontPath), { recursive: true })
-  debugLog(ctx, config, `准备下载字体: ${LXGW_WENKAI_FILE_NAME} -> ${fontPath}`)
+  logInfo(ctx, config, '', `准备下载字体: ${LXGW_WENKAI_FILE_NAME} -> ${fontPath}`)
 
   let lastError: unknown
   for (const item of LXGW_WENKAI_SOURCES) {
     try {
-      debugLog(ctx, config, `从 ${item.source} 下载字体: ${item.url}`)
+      logInfo(ctx, config, '', `从 ${item.source} 下载字体: ${item.url}`)
       const response = await axios.get<ArrayBuffer>(item.url, {
         responseType: 'arraybuffer',
         timeout: 120000,
       })
       const buffer = Buffer.from(response.data)
-      debugLog(ctx, config, `${item.source} 字体下载完成，开始校验: bytes=${buffer.length}`)
+      logInfo(ctx, config, '', `${item.source} 字体下载完成，开始校验: bytes=${buffer.length}`)
       if (!verifyFontBuffer(buffer, LXGW_WENKAI_INTEGRITY)) {
         throw new Error(`字体 hash 校验失败：${LXGW_WENKAI_FILE_NAME}`)
       }
@@ -97,15 +97,15 @@ export async function ensureRuntimeFonts(ctx: Context, config: Config) {
       if (!(await verifyFontIntegrity(fontPath, LXGW_WENKAI_INTEGRITY))) {
         throw new Error(`字体写入后 hash 校验失败：${LXGW_WENKAI_FILE_NAME}`)
       }
-      debugLog(ctx, config, `字体下载完成，hash 校验通过: ${fontPath} (${buffer.length} bytes)`)
+      logInfo(ctx, config, '', `字体下载完成，hash 校验通过: ${fontPath} (${buffer.length} bytes)`)
       return
     } catch (error) {
       lastError = error
-      ctx.logger('sky-renwu-weibo').warn(`[sky-renwu-weibo] ${item.source} 字体下载失败：${error instanceof Error ? error.message : String(error)}`)
+      logInfo(ctx, config, `[sky-renwu-weibo] ${item.source} 字体下载失败：${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
-  ctx.logger('sky-renwu-weibo').warn(`[sky-renwu-weibo] 字体自动下载失败，将使用系统默认字体：${lastError instanceof Error ? lastError.message : String(lastError)}`)
+  logInfo(ctx, config, `[sky-renwu-weibo] 字体自动下载失败，将使用系统默认字体：${lastError instanceof Error ? lastError.message : String(lastError)}`)
 }
 
 function calculateFontHashes(buffer: Buffer) {

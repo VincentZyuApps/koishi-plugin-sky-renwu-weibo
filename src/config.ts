@@ -321,7 +321,7 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     verboseSessionLog: Schema.boolean()
       .default(false)
-      .description('💬 是否在会话中输出详细调试信息。关闭时非 QQ 平台的 QQ Markdown 按钮跳过提醒不会发送到会话；开启后会同步发送到会话。'),
+      .description('💬 是否在会话中输出详细调试信息。关闭时 QQ Markdown 按钮跳过提醒默认不会发送到会话；开启后才会同步发送到会话。'),
     verboseConsoleLog: Schema.boolean()
       .default(false)
       .description('🧾 是否在控制台输出详细调试信息。关闭时非 QQ 平台的 QQ Markdown 按钮跳过提醒不会输出到控制台；开启后会输出缓存、微博抓取、渲染、发送、assets/server 图片 URL 生成和字体检查细节。'),

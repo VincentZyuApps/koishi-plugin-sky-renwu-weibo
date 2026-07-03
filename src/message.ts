@@ -16,7 +16,7 @@ import { formatDailyImageWithText } from './templates/image-with-text'
 import { renderDailyImage } from './templates/puppeteer-image'
 import { formatDailyText } from './templates/text'
 import { formatDailyTextWithImage } from './templates/text-with-image'
-import { debugLog } from './utils/logger'
+import { logInfo } from './utils/logger'
 import type { DailyResult } from './weibo'
 
 export function normalizeMsgForms(config: Config) {
@@ -40,7 +40,6 @@ export async function sendDailyResult(
   session: Session,
   config: Config,
   result: DailyResult,
-  logger: ReturnType<Context['logger']>,
 ) {
   const msgForms = normalizeMsgForms(config)
   if (!msgForms.length) {
@@ -48,11 +47,11 @@ export async function sendDailyResult(
   }
 
   const buttonModes = normalizeQQButtonModes(config)
-  debugLog(logger, config, `消息发送形式: ${msgForms.join(', ') || '(empty)'}`)
-  debugLog(logger, config, `QQ Markdown 按钮行为: ${buttonModes.join(', ') || '(empty)'}`)
-  debugLog(logger, config, `发送执行模式: ${config.strictOrderMode !== false ? 'serial' : 'parallel'}`)
-  await notifyInvalidQQButtonModes(session, config, msgForms, logger, buttonModes)
-  const tasks = msgForms.map((mode) => () => sendDailyMode(ctx, session, config, result, logger, msgForms, buttonModes, mode))
+  logInfo(ctx, config, '', `消息发送形式: ${msgForms.join(', ') || '(empty)'}`)
+  logInfo(ctx, config, '', `QQ Markdown 按钮行为: ${buttonModes.join(', ') || '(empty)'}`)
+  logInfo(ctx, config, '', `发送执行模式: ${config.strictOrderMode !== false ? 'serial' : 'parallel'}`)
+  await notifyInvalidQQButtonModes(ctx, session, config, msgForms, buttonModes)
+  const tasks = msgForms.map((mode) => () => sendDailyMode(ctx, session, config, result, msgForms, buttonModes, mode))
 
   if (config.strictOrderMode !== false) {
     for (const task of tasks) await task()
@@ -60,7 +59,7 @@ export async function sendDailyResult(
     await Promise.all(tasks.map((task) => task()))
   }
 
-  await sendStandaloneQQButton(session, config, logger, buttonModes)
+  await sendStandaloneQQButton(ctx, session, config, buttonModes)
 }
 
 function sendSessionMessage(session: Session, config: Config, content: unknown) {
@@ -72,7 +71,8 @@ function getQuotePrefix(session: Session, config: Config) {
 }
 
 function shouldSendMode(
-  logger: ReturnType<Context['logger']>,
+  ctx: Context,
+  config: Config,
   msgForms: string[],
   mode: string,
   payloadReady = true,
@@ -81,7 +81,7 @@ function shouldSendMode(
   if (!selected) return false
 
   if (!payloadReady) {
-    logger.warn(`跳过发送模式 ${mode}: 当前数据不足。`)
+    logInfo(ctx, config, `跳过发送模式 ${mode}: 当前数据不足。`)
     return false
   }
 
@@ -89,14 +89,15 @@ function shouldSendMode(
 }
 
 async function sendWithModeGuard(
-  logger: ReturnType<Context['logger']>,
+  ctx: Context,
+  config: Config,
   mode: string,
   send: () => Promise<unknown>,
 ) {
   try {
     await send()
   } catch (error) {
-    logger.error(`发送模式失败 ${mode}`, error)
+    logInfo(ctx, config, `发送模式失败 ${mode}: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -105,47 +106,46 @@ async function sendDailyMode(
   session: Session,
   config: Config,
   result: DailyResult,
-  logger: ReturnType<Context['logger']>,
   msgForms: string[],
   buttonModes: QQMarkdownButtonMode[],
   mode: MsgFormType,
 ) {
-  debugLog(logger, config, `准备执行发送模式: ${mode}`)
-  if (mode === MSG_FORM.TEXT_WITH_IMAGE && shouldSendMode(logger, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
-    return sendWithModeGuard(logger, mode, () =>
+  logInfo(ctx, config, '', `准备执行发送模式: ${mode}`)
+  if (mode === MSG_FORM.TEXT_WITH_IMAGE && shouldSendMode(ctx, config, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
+    return sendWithModeGuard(ctx, config, mode, () =>
       sendSessionMessage(session, config, formatDailyTextWithImage(result)),
     )
   }
 
-  if (mode === MSG_FORM.IMAGE_WITH_TEXT && shouldSendMode(logger, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
-    return sendWithModeGuard(logger, mode, () =>
+  if (mode === MSG_FORM.IMAGE_WITH_TEXT && shouldSendMode(ctx, config, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
+    return sendWithModeGuard(ctx, config, mode, () =>
       sendSessionMessage(session, config, formatDailyImageWithText(result)),
     )
   }
 
-  if (mode === MSG_FORM.FORWARD && shouldSendMode(logger, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
+  if (mode === MSG_FORM.FORWARD && shouldSendMode(ctx, config, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
     if (!isSupportedForwardPlatform(session.platform)) {
-      logger.warn(`跳过发送模式 ${mode}: 当前平台 ${session.platform || '(unknown)'} 不支持合并转发，仅支持 onebot / red / discord。`)
+      logInfo(ctx, config, `跳过发送模式 ${mode}: 当前平台 ${session.platform || '(unknown)'} 不支持合并转发，仅支持 onebot / red / discord。`)
       return
     }
 
-    return sendWithModeGuard(logger, mode, () =>
+    return sendWithModeGuard(ctx, config, mode, () =>
       session.send(h.unescape(formatDailyForward(result, session.bot))),
     )
   }
 
-  if (mode === MSG_FORM.TEXT && shouldSendMode(logger, msgForms, mode, !!result.text)) {
-    return sendWithModeGuard(logger, mode, () =>
+  if (mode === MSG_FORM.TEXT && shouldSendMode(ctx, config, msgForms, mode, !!result.text)) {
+    return sendWithModeGuard(ctx, config, mode, () =>
       sendSessionMessage(session, config, formatDailyText(result)),
     )
   }
 
-  if (mode === MSG_FORM.PUPPETEER_IMAGE && shouldSendMode(logger, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
-    return sendPuppeteerImageMode(ctx, session, config, result, logger, buttonModes)
+  if (mode === MSG_FORM.PUPPETEER_IMAGE && shouldSendMode(ctx, config, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
+    return sendPuppeteerImageMode(ctx, session, config, result, buttonModes)
   }
 
-  if (mode === MSG_FORM.QQ_MARKDOWN && shouldSendMode(logger, msgForms, mode, !!result.text)) {
-    return sendQQMarkdownMode(session, config, result, logger, buttonModes)
+  if (mode === MSG_FORM.QQ_MARKDOWN && shouldSendMode(ctx, config, msgForms, mode, !!result.text)) {
+    return sendQQMarkdownMode(ctx, session, config, result, buttonModes)
   }
 }
 
@@ -154,24 +154,23 @@ async function sendPuppeteerImageMode(
   session: Session,
   config: Config,
   result: DailyResult,
-  logger: ReturnType<Context['logger']>,
   buttonModes: QQMarkdownButtonMode[],
 ) {
   if (!ctx.puppeteer) {
-    logger.warn('跳过 Puppeteer 卡片图: 当前 Koishi 未启用 puppeteer 服务。')
+    logInfo(ctx, config, '跳过 Puppeteer 卡片图: 当前 Koishi 未启用 puppeteer 服务。')
     if (hasAppendQQPuppeteerImageButtonMode(buttonModes)) {
-      await notifyQQButtonSkip(session, config, logger, 'Puppeteer 卡片图按钮需要启用 Koishi puppeteer 服务，但当前未启用。')
+      await notifyQQButtonSkip(ctx, session, config, 'Puppeteer 卡片图按钮需要启用 Koishi puppeteer 服务，但当前未启用。')
     }
     return
   }
 
-  await sendWithModeGuard(logger, MSG_FORM.PUPPETEER_IMAGE, async () => {
-    debugLog(logger, config, `开始渲染 Puppeteer 卡片图: type=${config.imageType}, width=${config.imageWidth}, quality=${config.screenshotQuality}`)
+  await sendWithModeGuard(ctx, config, MSG_FORM.PUPPETEER_IMAGE, async () => {
+    logInfo(ctx, config, '', `开始渲染 Puppeteer 卡片图: type=${config.imageType}, width=${config.imageWidth}, quality=${config.screenshotQuality}`)
     const renderedImage = await renderDailyImage(ctx, result, config)
-    debugLog(logger, config, `Puppeteer 卡片图渲染完成: base64Length=${renderedImage.base64.length}, size=${renderedImage.width}x${renderedImage.height}`)
+    logInfo(ctx, config, '', `Puppeteer 卡片图渲染完成: base64Length=${renderedImage.base64.length}, size=${renderedImage.width}x${renderedImage.height}`)
 
     if (hasAppendQQPuppeteerImageButtonMode(buttonModes)) {
-      await sendQQPuppeteerImageWithButtons(ctx, session, config, renderedImage, logger)
+      await sendQQPuppeteerImageWithButtons(ctx, session, config, renderedImage)
       return
     }
 

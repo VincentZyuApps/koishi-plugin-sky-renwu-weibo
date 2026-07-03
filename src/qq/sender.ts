@@ -3,7 +3,7 @@ import { QQ_MARKDOWN_PUPPETEER_IMAGE_STORAGE_MODE, type Config } from '../config
 import type { RenderedDailyImage } from '../templates/puppeteer-image'
 import { formatDailyQQMarkdown } from '../templates/qq-markdown'
 import type { DailyResult } from '../weibo'
-import { debugLog } from '../utils/logger'
+import { logInfo } from '../utils/logger'
 import {
   hasAppendQQMarkdownButtonMode,
   hasStandaloneQQButtonMode,
@@ -23,41 +23,41 @@ const QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE = {
 }
 
 export async function sendStandaloneQQButton(
+  ctx: Context,
   session: Session,
   config: Config,
-  logger: ReturnType<Context['logger']>,
   buttonModes: QQMarkdownButtonMode[],
 ) {
   if (!hasStandaloneQQButtonMode(buttonModes)) return
-  debugLog(logger, config, '准备单独发送 QQ Markdown JSON 按钮消息')
+  logInfo(ctx, config, '', '准备单独发送 QQ Markdown JSON 按钮消息')
   if (session.platform !== 'qq') {
-    await notifyQQButtonSkip(session, config, logger, '单独发送 JSON 按钮消息只能在 QQ 官方 Bot 平台使用。')
+    await notifyQQButtonSkip(ctx, session, config, '单独发送 JSON 按钮消息只能在 QQ 官方 Bot 平台使用。')
     return
   }
 
-  await sendWithModeGuard(logger, 'qq-markdown-button', () =>
+  await sendWithModeGuard(ctx, config, 'qq-markdown-button', () =>
     sendQQMarkdown(session, QQ_MARKDOWN_BUTTON_ONLY_CONTENT, buildDailyKeyboard(config), true),
   )
 }
 
 export async function sendQQMarkdownMode(
+  ctx: Context,
   session: Session,
   config: Config,
   result: DailyResult,
-  logger: ReturnType<Context['logger']>,
   buttonModes: QQMarkdownButtonMode[],
 ) {
   if (session.platform !== 'qq') {
-    await notifyQQButtonSkip(session, config, logger, 'QQ Markdown 正文消息只能在 QQ 官方 Bot 平台使用。')
+    await notifyQQButtonSkip(ctx, session, config, 'QQ Markdown 正文消息只能在 QQ 官方 Bot 平台使用。')
     return
   }
 
   const keyboard = hasAppendQQMarkdownButtonMode(buttonModes)
     ? buildDailyKeyboard(config)
     : null
-  debugLog(logger, config, `发送 QQ Markdown 正文消息，按钮挂载: ${keyboard ? 'yes' : 'no'}`)
+  logInfo(ctx, config, '', `发送 QQ Markdown 正文消息，按钮挂载: ${keyboard ? 'yes' : 'no'}`)
 
-  await sendWithModeGuard(logger, 'qq-markdown', () =>
+  await sendWithModeGuard(ctx, config, 'qq-markdown', () =>
     sendQQMarkdown(session, formatDailyQQMarkdown(result, config), keyboard, true),
   )
 }
@@ -67,34 +67,33 @@ export async function sendQQPuppeteerImageWithButtons(
   session: Session,
   config: Config,
   renderedImage: RenderedDailyImage,
-  logger: ReturnType<Context['logger']>,
 ) {
   if (session.platform !== 'qq') {
-    await notifyQQButtonSkip(session, config, logger, 'Puppeteer 卡片图按钮只能在 QQ 官方 Bot 平台使用。')
+    await notifyQQButtonSkip(ctx, session, config, 'Puppeteer 卡片图按钮只能在 QQ 官方 Bot 平台使用。')
     return sendSessionImage(session, config, renderedImage.base64)
   }
 
   let imageUrl = ''
   if (config.qqMarkdownPuppeteerImageStorageMode === QQ_MARKDOWN_PUPPETEER_IMAGE_STORAGE_MODE.ASSETS) {
     try {
-      imageUrl = await uploadQQMarkdownPuppeteerImageViaAssets(ctx, config, renderedImage.base64, logger)
+      imageUrl = await uploadQQMarkdownPuppeteerImageViaAssets(ctx, config, renderedImage.base64)
     } catch (error) {
-      await notifyQQButtonSkip(session, config, logger, `append-puppeteer-image 的 assets 模式不可用：${error instanceof Error ? error.message : String(error)} standalone 与 append-qq-markdown 不需要此服务。`)
+      await notifyQQButtonSkip(ctx, session, config, `append-puppeteer-image 的 assets 模式不可用：${error instanceof Error ? error.message : String(error)} standalone 与 append-qq-markdown 不需要此服务。`)
       return sendSessionImage(session, config, renderedImage.base64)
     }
   } else {
     try {
-      debugLog(logger, config, 'append-puppeteer-image 使用 server 模式写入临时卡片图缓存')
-      imageUrl = await storeQQMarkdownPuppeteerImage(ctx, config, renderedImage.base64, logger)
-      debugLog(logger, config, `server 模式缓存完成: ${imageUrl}`)
+      logInfo(ctx, config, '', 'append-puppeteer-image 使用 server 模式写入临时卡片图缓存')
+      imageUrl = await storeQQMarkdownPuppeteerImage(ctx, config, renderedImage.base64)
+      logInfo(ctx, config, '', `server 模式缓存完成: ${imageUrl}`)
     } catch (error) {
-      await notifyQQButtonSkip(session, config, logger, `append-puppeteer-image 的 server 模式不可用：${error instanceof Error ? error.message : String(error)} standalone 与 append-qq-markdown 不需要此服务。`)
+      await notifyQQButtonSkip(ctx, session, config, `append-puppeteer-image 的 server 模式不可用：${error instanceof Error ? error.message : String(error)} standalone 与 append-qq-markdown 不需要此服务。`)
       return sendSessionImage(session, config, renderedImage.base64)
     }
   }
 
   const dimensions = fitImageDimensions(renderedImage, QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE)
-  debugLog(logger, config, `发送 QQ Markdown Puppeteer 卡片图并附带按钮: markdownSize=${dimensions.width}x${dimensions.height}`)
+  logInfo(ctx, config, '', `发送 QQ Markdown Puppeteer 卡片图并附带按钮: markdownSize=${dimensions.width}x${dimensions.height}`)
   await sendQQMarkdown(session, formatPuppeteerImageMarkdown(imageUrl, dimensions.width, dimensions.height), buildDailyKeyboard(config), true)
 }
 
@@ -103,13 +102,14 @@ function sendSessionImage(session: Session, config: Config, imageBase64: string)
 }
 
 async function sendWithModeGuard(
-  logger: ReturnType<Context['logger']>,
+  ctx: Context,
+  config: Config,
   mode: string,
   send: () => Promise<unknown>,
 ) {
   try {
     await send()
   } catch (error) {
-    logger.error(`发送模式失败 ${mode}`, error)
+    logInfo(ctx, config, `发送模式失败 ${mode}: ${error instanceof Error ? error.message : String(error)}`)
   }
 }

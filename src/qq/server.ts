@@ -3,7 +3,7 @@ import { mkdir, readdir, stat, unlink, writeFile } from 'fs/promises'
 import path from 'path'
 import type { Context } from 'koishi'
 import type { Config } from '../config'
-import { debugLog } from '../utils/logger'
+import { logInfo } from '../utils/logger'
 
 const IMAGE_CACHE_DIR_NAME = 'sky-renwu-weibo'
 const IMAGE_CACHE_ROUTE = '/sky-renwu-weibo/cache'
@@ -38,7 +38,6 @@ export async function storeQQMarkdownPuppeteerImage(
   ctx: Context,
   config: Config,
   imageBase64: string,
-  logger?: ReturnType<Context['logger']>,
 ) {
   if (!ctx.server) {
     throw new Error('当前未启用 Koishi server 服务。')
@@ -55,9 +54,9 @@ export async function storeQQMarkdownPuppeteerImage(
   const filename = await createTimestampedImageFilename(cacheDir, config.imageType)
   const filePath = path.join(cacheDir, filename)
   await writeFile(filePath, Buffer.from(imageBase64, 'base64'))
-  debugLog(logger, config, `server 模式已写入 QQ Markdown 卡片图缓存: ${filePath}`)
+  logInfo(ctx, config, '', `server 模式已写入 QQ Markdown 卡片图缓存: ${filePath}`)
 
-  await pruneQQMarkdownImageCache(cacheDir, config.qqMarkdownPuppeteerImageMaxFiles, logger, config)
+  await pruneQQMarkdownImageCache(ctx, cacheDir, config.qqMarkdownPuppeteerImageMaxFiles, config)
 
   return `${publicBaseUrl}${IMAGE_CACHE_ROUTE}/${encodeURIComponent(filename)}`
 }
@@ -103,9 +102,9 @@ function formatShanghaiTimestamp(date: Date) {
 }
 
 async function pruneQQMarkdownImageCache(
+  ctx: Context,
   cacheDir: string,
   maxFiles: number,
-  logger: ReturnType<Context['logger']> | undefined,
   config: Config,
 ) {
   const limit = Math.floor(Number(maxFiles) || 0)
@@ -124,22 +123,22 @@ async function pruneQQMarkdownImageCache(
 
   images.sort((a, b) => a.mtimeMs - b.mtimeMs)
   for (const { filePath } of images.slice(0, images.length - limit)) {
-    await removeCachedImage(filePath, logger, config, '数量上限清理')
+    await removeCachedImage(ctx, filePath, config, '数量上限清理')
   }
 }
 
 async function removeCachedImage(
+  ctx: Context,
   filePath: string,
-  logger: ReturnType<Context['logger']> | undefined,
   config: Config,
   reason: string,
 ) {
   try {
     await unlink(filePath)
-    debugLog(logger, config, `server 模式已删除 QQ Markdown 卡片图缓存 (${reason}): ${filePath}`)
+    logInfo(ctx, config, '', `server 模式已删除 QQ Markdown 卡片图缓存 (${reason}): ${filePath}`)
   } catch (error) {
     if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
-      logger?.warn(`删除 QQ Markdown 卡片图缓存失败 (${reason}): ${filePath} - ${error instanceof Error ? error.message : String(error)}`)
+      logInfo(ctx, config, `删除 QQ Markdown 卡片图缓存失败 (${reason}): ${filePath} - ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 }

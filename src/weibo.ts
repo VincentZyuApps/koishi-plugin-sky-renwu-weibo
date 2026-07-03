@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios'
 import type { Context } from 'koishi'
 import type { Config } from './config'
-import { debugLog } from './utils/logger'
+import { logInfo } from './utils/logger'
 
 interface WeiboPictureUrls {
   large?: { url?: string }
@@ -56,17 +56,17 @@ export function createWeiboClient(config: Config) {
 }
 
 export async function fetchChineseServerDaily(
+  ctx: Context,
   client: AxiosInstance,
   config: Config,
-  logger?: ReturnType<Context['logger']>,
 ): Promise<DailyResult> {
   const posts = await fetchUserPosts(client, config.uid)
-  debugLog(logger, config, `微博列表拉取完成: count=${posts.length}`)
+  logInfo(ctx, config, '', `微博列表拉取完成: count=${posts.length}`)
   const pattern = new RegExp(config.matchPattern)
   const post = posts.find((item) => isTodayInBeijing(item.createdAt) && pattern.test(item.textRaw))
 
   if (!post) {
-    debugLog(logger, config, '未匹配到今日每日任务微博')
+    logInfo(ctx, config, '', '未匹配到今日每日任务微博')
     return {
       text: '【🌏 国服】今日任务还未更新',
       imageUrls: [],
@@ -75,11 +75,11 @@ export async function fetchChineseServerDaily(
     }
   }
 
-  debugLog(logger, config, `匹配到每日任务微博: mblogid=${post.mblogid}, imageUrls=${post.imageUrls.length}, url=${post.url}`)
+  logInfo(ctx, config, '', `匹配到每日任务微博: mblogid=${post.mblogid}, imageUrls=${post.imageUrls.length}, url=${post.url}`)
   const longText = await fetchLongText(client, post.mblogid)
-  debugLog(logger, config, `微博长文拉取完成: hasLongText=${Boolean(longText)}, length=${(longText || '').length}`)
-  const imageBuffers = await fetchImages(client, post.imageUrls, logger)
-  debugLog(logger, config, `微博图片下载完成: success=${imageBuffers.length}, total=${post.imageUrls.length}`)
+  logInfo(ctx, config, '', `微博长文拉取完成: hasLongText=${Boolean(longText)}, length=${(longText || '').length}`)
+  const imageBuffers = await fetchImages(ctx, client, config, post.imageUrls)
+  logInfo(ctx, config, '', `微博图片下载完成: success=${imageBuffers.length}, total=${post.imageUrls.length}`)
   const text = [
     longText || post.textRaw || '【🌏 国服】今日任务还未更新',
     '------------',
@@ -134,9 +134,10 @@ async function fetchLongText(client: AxiosInstance, mblogid: string) {
 }
 
 async function fetchImages(
+  ctx: Context,
   client: AxiosInstance,
+  config: Config,
   urls: string[],
-  logger?: ReturnType<Context['logger']>,
 ) {
   const results = await Promise.allSettled(urls.map(async (url) => {
     const response = await client.get<ArrayBuffer>(url, {
@@ -148,7 +149,7 @@ async function fetchImages(
 
   return results.flatMap((result, index) => {
     if (result.status === 'fulfilled') return [result.value]
-    logger?.warn(`微博图片下载失败，已跳过第 ${index + 1} 张: ${result.reason}`)
+    logInfo(ctx, config, `微博图片下载失败，已跳过第 ${index + 1} 张: ${result.reason}`)
     return []
   })
 }
