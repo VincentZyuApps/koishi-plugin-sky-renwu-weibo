@@ -44,7 +44,7 @@
 ## 📌 指令
 
 ```text
-今日国服
+今日光遇国服任务
 ```
 
 命令名称可以在配置项 `commandName` 中修改。
@@ -55,9 +55,17 @@
 
 > [!IMPORTANT]
 >
-> Cookie 辅助脚本只使用 Python 标准库，不需要安装任何第三方库，即 不需要 `pip install`。
+> Cookie 辅助脚本只使用 Python 标准库，不需要安装任何第三方库，也不需要 `pip install`。
 >
 > 建议使用 Python `3.10` - `3.13`，优先推荐和作者同款的 Python `3.13`。脚本使用了 Python 3.10+ 的类型标注语法，Python 3.9 及以下不建议使用。
+
+> [!TIP]
+>
+> 这个脚本底层使用的是 **CDP（Chrome DevTools Protocol）**，不是 Selenium。
+>
+> 它会启动带 `--remote-debugging-port` 的 Chrome / Edge，只访问本机 `127.0.0.1` 的 DevTools 调试端口，再通过 CDP 的 `Network.getAllCookies` 读取当前登录态下的 `weibo.com` Cookie。
+>
+> 脚本不会把完整 Cookie 打印到终端或写进调试日志，只会把结果写入本地 `weibo_cookie.private.txt`。
 
 由于安全原因，插件不会内置任何微博登录 Cookie，也不建议把 Cookie 写进源码、README、issue 或聊天记录中。请自行登录微博并获取自己的 Cookie。
 
@@ -112,13 +120,13 @@ scripts/
 - 📄➕🖼️ `text-with-image`：先文后图，一条消息内先发送微博长文本，再发送全部图片
 - 🖼️➕📄 `image-with-text`：先图后文，一条消息内先发送全部图片，再发送微博长文本
 - 📄 `text`：纯文字，只发送微博长文本、数据来源和原文链接
-- 📦 `forward`：图文合并转发，把文字和图片打包进 OneBot 合并转发
+- 📦 `forward`：图文合并转发，把文字和图片打包进合并转发；仅支持 `onebot`、`red` 和 `discord` 平台
 - 🖼️ `puppeteer-image`：Puppeteer 卡片图，把文字和微博图片排版成一张圆角卡片图
 - 🤖 `qq-markdown`：QQ 官方 Bot Markdown 正文消息，只有 QQ 官方 Bot 平台能用；操作按钮行为由 `qqMarkdownButtonMode` 控制
 
-默认启用 `forward` 和 `puppeteer-image`。
+默认启用 `forward`、`puppeteer-image` 和 `qq-markdown`。
 
-`puppeteer-image` 模式需要启用 Koishi 的 `puppeteer` 服务；未启用时插件会跳过该发送形式。`append-puppeteer-image` 按钮行为还需要根据配置模式启用 Koishi `assets` 或 `server` 服务，用于生成公网 `http(s)` 图片地址。`standalone` 和 `append-qq-markdown` 不使用这套图片 URL 生成逻辑。
+`forward` 模式仅支持 `onebot`、`red` 和 `discord` 平台；其他平台即使勾选也会直接跳过。`puppeteer-image` 模式需要启用 Koishi 的 `puppeteer` 服务；未启用时插件会跳过该发送形式。`append-puppeteer-image` 按钮行为还需要根据配置模式启用 Koishi `assets` 或 `server` 服务，用于生成公网 `http(s)` 图片地址。`standalone` 和 `append-qq-markdown` 不使用这套图片 URL 生成逻辑。
 
 ### 🖼️ 效果预览
 
@@ -132,7 +140,7 @@ scripts/
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `commandName` | `string` | `"今日国服"` | 触发命令名称 |
+| `commandName` | `string` | `"今日光遇国服任务"` | 触发命令名称 |
 | `uid` | `string` | `"7360748659"` | 微博用户 UID，默认是 [`@今天游离翻车了吗`](https://weibo.com/u/7360748659) |
 | `authorName` | `string` | `"今天游离翻车了吗"` | 来源作者显示名，会展示在数据来源署名里 |
 | `weiboCookie` | `string` | `""` | 微博登录 Cookie，必填；可用 `scripts/20260630/weibo_cookie.py` 导出 |
@@ -152,7 +160,7 @@ scripts/
 |---|---|---|---|
 | `enableQuote` | `boolean` | `true` | bot 发送普通消息时是否引用触发指令；`forward` 合并转发模式不会附带引用 |
 | `enableWaitingHint` | `boolean` | `true` | 是否显示“获取并生成中.... 请耐心等待”等待提示；所有发送形式完成后会尝试撤回 |
-| `msgFormArr` | `{ mode, enabled }[]` | 见默认表格 | 每日任务发送形式表格，可调整顺序，可启用 / 禁用；默认启用 `forward` 和 `puppeteer-image` |
+| `msgFormArr` | `{ mode, enabled }[]` | 见默认表格 | 每日任务发送形式表格，可调整顺序，可启用 / 禁用；默认启用 `forward`、`puppeteer-image` 和 `qq-markdown` |
 | `strictOrderMode` | `boolean` | `true` | 是否严格按照表格顺序串行发送；关闭后会并行发送，顺序不保证 |
 
 ### 🤖 QQ 官方 Bot Markdown 适配
@@ -163,10 +171,10 @@ scripts/
 | `qqMarkdownPuppeteerImageSelfUrl` | `string` | `""` | server 模式公网 URL 覆盖值；仅在 `append-puppeteer-image` 且存储模式为 `server` 时生效；留空则回退 `ctx.server.config.selfUrl` |
 | `qqMarkdownPuppeteerImageMaxFiles` | `number` | `5` | server 模式缓存图片数量上限；仅在 `append-puppeteer-image` 且存储模式为 `server` 时生效；仅保留最新 N 张，填写 `<= 0` 表示不设置上限 |
 | `qqMarkdownMode` | `"structured" \| "blockquote"` | `"structured"` | QQ Markdown 文案整理模式；`structured` 会尝试按正则整理标题、任务条目和来源，`blockquote` 会把全文逐行放进引用块 |
-| `qqMarkdownButtonMode` | `string[]` | `[]` | QQ Markdown 按钮发送行为，可多选；`standalone` 单独发送固定的 `## 光遇任务操作按钮` 消息并附带按钮，`append-qq-markdown` 在启用 `qq-markdown` 发送形式时把按钮挂到正文 Markdown 后面，`append-puppeteer-image` 在启用 `puppeteer-image` 发送形式时按上方模式把 Puppeteer 卡片图转成公网 URL 后发送 Markdown 图片并附带按钮 |
+| `qqMarkdownButtonMode` | `string[]` | `["append-qq-markdown", "append-puppeteer-image"]` | QQ Markdown 按钮发送行为，可多选；`standalone` 单独发送固定的 `## 光遇任务操作按钮` 消息并附带按钮，`append-qq-markdown` 在启用 `qq-markdown` 发送形式时把按钮挂到正文 Markdown 后面，`append-puppeteer-image` 在启用 `puppeteer-image` 发送形式时按上方模式把 Puppeteer 卡片图转成公网 URL 后发送 Markdown 图片并附带按钮 |
 | `qqMarkdownKeyboardJson` | `string` | 默认按钮 JSON | QQ Markdown 按钮 JSON 配置；默认一行两个按钮：`再次获取` 执行 `${commandName}`，`玩玩别的` 执行 `help` |
 
-`append-qq-markdown` 必须同时启用 `qq-markdown`。`append-puppeteer-image` 必须同时启用 `puppeteer-image`，并根据配置模式依赖 Koishi `assets` 或 `server` 服务提供公网 `http(s)` 图片地址。如果条件不满足，插件会在会话和 console 中提醒，但不会自动补发；不想在 QQ 平台发送按钮时保持空选即可。`standalone` 不使用 `assets` / `server` 图片 URL 生成功能。
+`append-qq-markdown` 必须同时启用 `qq-markdown`。`append-puppeteer-image` 必须同时启用 `puppeteer-image`，并根据配置模式依赖 Koishi `assets` 或 `server` 服务提供公网 `http(s)` 图片地址。如果条件不满足，QQ 平台会直接提示；非 QQ 平台默认静默跳过，只会在开启 `verboseSessionLog` 或 `verboseConsoleLog` 时输出额外提醒，不会自动补发。`standalone` 不使用 `assets` / `server` 图片 URL 生成功能。
 
 `server` 模式会把临时图片写到 `ctx.baseDir/cache/sky-renwu-weibo`，文件名格式为 `yyyyMMdd-HHmmss.<ext>`，并按配置的数量上限只保留最新图片；`qqMarkdownPuppeteerImageMaxFiles <= 0` 表示不设置上限。超过上限时，较早生成的旧图片会被清理，旧 QQ Markdown 消息里的图片后续可能失效，这是预期行为。
 

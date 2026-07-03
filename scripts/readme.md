@@ -6,9 +6,20 @@
 
 > [!IMPORTANT]
 >
-> 这个脚本只使用 Python 标准库，不需要安装任何第三方库，即 不需要 `pip install`。
+> 这个脚本只使用 Python 标准库，不需要安装任何第三方库，也不需要 `pip install`。
 >
 > 建议使用 Python `3.10` - `3.13`，优先推荐和作者同款的 Python `3.13`。脚本使用了 Python 3.10+ 的类型标注语法，Python 3.9 及以下不建议使用。
+
+## 🧠 CDP 原理
+
+这个脚本使用的是 **CDP（Chrome DevTools Protocol）**。
+
+- 启动 Chrome / Edge 时会附带 `--remote-debugging-port`，让浏览器暴露本机 DevTools 调试端口。
+- 脚本会先访问本地 HTTP 接口 `/json/version` 和 `/json/list`，找到微博页面对应的 `webSocketDebuggerUrl`。
+- 然后通过 WebSocket 连接页面调试地址，并调用 CDP 的 `Network.enable` 与 `Network.getAllCookies`。
+- 最后只保留 `weibo.com` 及其子域名的 Cookie，写入本地 `weibo_cookie.private.txt`。
+
+整个实现只依赖 Python 标准库；包括 WebSocket 客户端也是脚本里手写的最小实现，没有额外依赖。
 
 ![微博 Cookie 脚本示例](../docs/images/example.get-weibo-cookie-via-python.png)
 

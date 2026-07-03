@@ -124,6 +124,11 @@ async function sendDailyMode(
   }
 
   if (mode === MSG_FORM.FORWARD && shouldSendMode(logger, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
+    if (!isSupportedForwardPlatform(session.platform)) {
+      logger.warn(`跳过发送模式 ${mode}: 当前平台 ${session.platform || '(unknown)'} 不支持合并转发，仅支持 onebot / red / discord。`)
+      return
+    }
+
     return sendWithModeGuard(logger, mode, () =>
       session.send(h.unescape(formatDailyForward(result, session.bot))),
     )
@@ -176,4 +181,8 @@ async function sendPuppeteerImageMode(
 
 function toImageMessage(config: Config, imageBase64: string) {
   return h.image(`data:image/${config.imageType};base64,${imageBase64}`)
+}
+
+function isSupportedForwardPlatform(platform?: string) {
+  return ['onebot', 'red', 'discord'].includes(String(platform || '').trim())
 }

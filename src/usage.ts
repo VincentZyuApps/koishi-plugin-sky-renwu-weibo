@@ -59,7 +59,7 @@ export const usage = `
 <h3>📌 指令</h3>
 
 <pre>
-默认指令名称：<code>今日国服</code>
+默认指令名称：<code>今日光遇国服任务</code>
 </pre>
 
 <p>命令名称可在配置项 <code>commandName</code> 中修改。</p>
@@ -67,6 +67,7 @@ export const usage = `
 <h3>🔐 微博 Cookie</h3>
 
 <p>微博接口通常需要登录 Cookie。可以运行仓库内的辅助脚本打开浏览器手动登录：</p>
+<p>Cookie 辅助脚本只使用 Python 标准库，也不需要 <code>pip install</code>。</p>
 
 <p>由于安全原因，插件不会内置任何微博登录 Cookie，也不建议把 Cookie 写进源码、README、issue 或聊天记录中。请自行登录微博并获取自己的 Cookie。</p>
 

@@ -20,13 +20,13 @@ export function formatDailyQQMarkdown(result: DailyResult, config: Config) {
 function formatStructuredMarkdown(result: DailyResult, config: Config) {
   const { mainText, sourceText } = splitDailyText(result.text)
   const contentLines = normalizeLines(stripMatchPrefix(mainText, config.matchPattern))
+  const metaTable = buildMetaTable(result, config)
   const markdown = [
     '# 光遇国服每日任务',
     '',
     DAILY_TASK_HINT_MARKDOWN,
-    `> 数据来源：微博 @${config.authorName}`,
-    `> 生成时间：${formatNow()}`,
-    `> 微博图片：${result.imageUrls.length || result.imageBuffers.length} 张`,
+    '',
+    ...metaTable,
     '',
     '## 微博文字内容',
     '',
@@ -80,13 +80,13 @@ function formatStructuredMarkdown(result: DailyResult, config: Config) {
 
 function formatBlockquoteMarkdown(result: DailyResult, config: Config) {
   const lines = normalizeLines(result.text)
+  const metaTable = buildMetaTable(result, config)
   const markdown = [
     '# 光遇国服每日任务',
     '',
     DAILY_TASK_HINT_MARKDOWN,
-    `> 数据来源：微博 @${config.authorName}`,
-    `> 生成时间：${formatNow()}`,
-    `> 微博图片：${result.imageUrls.length || result.imageBuffers.length} 张`,
+    '',
+    ...metaTable,
     '',
     '## 微博文字内容',
     '',
@@ -223,6 +223,20 @@ function appendImageSection(markdown: string[], result: DailyResult) {
 
 function compactBlankLines(lines: string[]) {
   return lines.filter((line, index, arr) => !(line === '' && arr[index - 1] === ''))
+}
+
+function buildMetaTable(result: DailyResult, config: Config) {
+  return [
+    '| Key | Value |',
+    '| --- | --- |',
+    `| 数据来源 | 微博 @${escapeTableCell(config.authorName)} |`,
+    `| 生成时间 | ${formatNow()} |`,
+    `| 微博图片 | ${result.imageUrls.length || result.imageBuffers.length} 张 |`,
+  ]
+}
+
+function escapeTableCell(value: string) {
+  return value.replace(/\|/g, '\\|')
 }
 
 function formatNow() {

@@ -27,8 +27,10 @@ export function apply(ctx: Context, config: ConfigType) {
   })
   applyQQServices(ctx)
 
-  ctx.command(config.commandName, '获取光遇国服每日任务')
-    .alias('今日光遇国服')
+  ctx.command(config.commandName, '📅✅ 访问微博获取光遇国服每日任务 ✨')
+    .alias('今日国服任务')
+    .alias('今日国服')
+    .alias('今日光遇')
     .action(async ({ session }) => {
       if (!session) return
 

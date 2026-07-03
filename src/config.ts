@@ -119,8 +119,8 @@ export const Config: Schema<Config> = Schema.intersect([
   // ==================
   Schema.object({
     commandName: Schema.string()
-      .default('今日国服')
-      .description('📌 触发命令名称。默认发送 <code>今日国服</code> 获取当天国服每日任务。'),
+      .default('今日光遇国服任务')
+      .description('📌 触发命令名称。默认发送 <code>今日光遇国服任务</code> 获取当天国服每日任务。'),
     uid: Schema.string()
       .default('7360748659')
       .description('👤 微博用户 UID。默认是 <code>@今天游离翻车了吗</code> 的 UID。'),
@@ -245,7 +245,7 @@ export const Config: Schema<Config> = Schema.intersect([
         '仅在按钮行为勾选 append-puppeteer-image，且图片 URL 生成模式为 server 时生效。',
         '缓存目录固定为 ctx.baseDir/cache/sky-renwu-weibo；仅保留最新 N 张，填写 <= 0 表示不设置上限。',
         'standalone 与 append-qq-markdown 不使用此配置。',
-      ].join('<br/><br/>')),
+      ].join('<br/>')),
     qqMarkdownMode: Schema.union([
       Schema.const(QQ_MARKDOWN_MODE.STRUCTURED).description(`【🧩 ${QQ_MARKDOWN_MODE.STRUCTURED}】按正则整理段落 (尝试识别标题、任务条目和来源信息，排版更清晰)`),
       Schema.const(QQ_MARKDOWN_MODE.BLOCKQUOTE).description(`【💬 ${QQ_MARKDOWN_MODE.BLOCKQUOTE}】全文引用块 (把所有原文逐行放进 > 引用块)`),
