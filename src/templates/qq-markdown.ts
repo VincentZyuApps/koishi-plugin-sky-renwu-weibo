@@ -1,6 +1,7 @@
 import { QQ_MARKDOWN_MODE, type Config } from '../config'
+import { fitImageDimensions, getImageDimensions } from '../qq/image'
 import type { DailyResult } from '../weibo'
-import { fitImageDimensions, getImageDimensions } from './common'
+import { DAILY_TASK_HINT_MARKDOWN } from './common/hint'
 
 const QQ_MARKDOWN_IMAGE_SIZE = {
   maxWidth: 600,
@@ -22,6 +23,7 @@ function formatStructuredMarkdown(result: DailyResult, config: Config) {
   const markdown = [
     '# 光遇国服每日任务',
     '',
+    DAILY_TASK_HINT_MARKDOWN,
     `> 数据来源：微博 @${config.authorName}`,
     `> 生成时间：${formatNow()}`,
     `> 微博图片：${result.imageUrls.length || result.imageBuffers.length} 张`,
@@ -81,6 +83,7 @@ function formatBlockquoteMarkdown(result: DailyResult, config: Config) {
   const markdown = [
     '# 光遇国服每日任务',
     '',
+    DAILY_TASK_HINT_MARKDOWN,
     `> 数据来源：微博 @${config.authorName}`,
     `> 生成时间：${formatNow()}`,
     `> 微博图片：${result.imageUrls.length || result.imageBuffers.length} 张`,

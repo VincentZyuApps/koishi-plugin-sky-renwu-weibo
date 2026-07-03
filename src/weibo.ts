@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios'
 import type { Context } from 'koishi'
 import type { Config } from './config'
+import { debugLog } from './utils/logger'
 
 interface WeiboPictureUrls {
   large?: { url?: string }
@@ -67,7 +68,7 @@ export async function fetchChineseServerDaily(
   if (!post) {
     debugLog(logger, config, '未匹配到今日每日任务微博')
     return {
-      text: '【国服】今日任务还未更新',
+      text: '【🌏 国服】今日任务还未更新',
       imageUrls: [],
       imageBuffers: [],
       fetchedAt: Date.now(),
@@ -80,9 +81,9 @@ export async function fetchChineseServerDaily(
   const imageBuffers = await fetchImages(client, post.imageUrls, logger)
   debugLog(logger, config, `微博图片下载完成: success=${imageBuffers.length}, total=${post.imageUrls.length}`)
   const text = [
-    longText || post.textRaw || '【国服】今日任务还未更新',
+    longText || post.textRaw || '【🌏 国服】今日任务还未更新',
     '------------',
-    `【数据来源：微博@${config.authorName}】`,
+    `【📡 数据来源：微博@${config.authorName}】`,
     `原文链接：${post.url}`,
   ].join('\n')
 
@@ -178,14 +179,4 @@ function formatBeijingDate(date: Date) {
     month: '2-digit',
     day: '2-digit',
   }).format(date)
-}
-
-function debugLog(
-  logger: ReturnType<Context['logger']> | undefined,
-  config: Config,
-  message: string,
-) {
-  if (config.verboseConsoleLog) {
-    logger?.info(`[debug] ${message}`)
-  }
 }

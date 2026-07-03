@@ -3,8 +3,9 @@ import {} from 'koishi-plugin-puppeteer'
 import { existsSync, readFileSync } from 'fs'
 import type { Config } from '../config'
 import type { DailyResult } from '../weibo'
-import { resolveRuntimeFontPath } from '../utils'
-import { bufferToDataUrl } from './common'
+import { DAILY_TASK_HINT_TEXT } from './common/hint'
+import { resolveRuntimeFontPath } from '../utils/fonts'
+import { bufferToDataUrl } from '../utils/image'
 
 export interface RenderedDailyImage {
   base64: string
@@ -146,6 +147,24 @@ ${fontFace}
         0 0 16px rgba(255, 255, 255, 0.9),
         0 4px 20px rgba(92, 212, 249, 0.72);
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.22));
+    }
+
+    .hint {
+      margin-top: 13px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      color: #2c5f76;
+      background: rgba(255, 255, 255, 0.3);
+      border: 1px solid rgba(92, 212, 249, 0.28);
+      font-size: 18px;
+      font-weight: 888;
+      line-height: 1.45;
+      text-shadow:
+        -1px -1px 0 rgba(255, 255, 255, 0.92),
+        1px -1px 0 rgba(255, 255, 255, 0.92),
+        -1px 1px 0 rgba(255, 255, 255, 0.92),
+        1px 1px 0 rgba(255, 255, 255, 0.92),
+        0 0 8px rgba(255, 255, 255, 0.82);
     }
 
     .date {
@@ -373,6 +392,7 @@ ${fontFace}
     <section class="header">
       <div class="kicker">✨ Sky Daily</div>
       <div class="title">光遇国服每日任务</div>
+      <div class="hint">${escapeHtml(DAILY_TASK_HINT_TEXT)}</div>
       <div class="date">${escapeHtml(formatToday())}</div>
       <div class="author-line">
         <span class="author-label">来源博主</span>
@@ -385,7 +405,7 @@ ${fontFace}
         </div>
         <div class="meta-item">
           <span class="meta-label">发送形式</span>
-          <span class="meta-value">卡片图</span>
+          <span class="meta-value">浏览器渲染图</span>
         </div>
       </div>
     </section>

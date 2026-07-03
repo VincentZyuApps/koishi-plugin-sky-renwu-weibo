@@ -4,7 +4,8 @@ import { mkdir, readFile, writeFile } from 'fs/promises'
 import path from 'path'
 import axios from 'axios'
 import type { Context } from 'koishi'
-import type { Config } from './config'
+import type { Config } from '../config'
+import { debugLog } from './logger'
 
 export const LXGW_WENKAI_FILE_NAME = 'LXGWWenKaiMono-Regular.ttf'
 
@@ -73,7 +74,7 @@ export async function ensureRuntimeFonts(ctx: Context, config: Config) {
   }
 
   if (existsSync(fontPath)) {
-    ctx.logger.warn(`[sky-renwu-weibo] ${LXGW_WENKAI_FILE_NAME} hash 校验失败，将重新下载`)
+    ctx.logger('sky-renwu-weibo').warn(`[sky-renwu-weibo] ${LXGW_WENKAI_FILE_NAME} hash 校验失败，将重新下载`)
   }
 
   await mkdir(path.dirname(fontPath), { recursive: true })
@@ -100,11 +101,11 @@ export async function ensureRuntimeFonts(ctx: Context, config: Config) {
       return
     } catch (error) {
       lastError = error
-      ctx.logger.warn(`[sky-renwu-weibo] ${item.source} 字体下载失败：${error instanceof Error ? error.message : String(error)}`)
+      ctx.logger('sky-renwu-weibo').warn(`[sky-renwu-weibo] ${item.source} 字体下载失败：${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
-  ctx.logger.warn(`[sky-renwu-weibo] 字体自动下载失败，将使用系统默认字体：${lastError instanceof Error ? lastError.message : String(lastError)}`)
+  ctx.logger('sky-renwu-weibo').warn(`[sky-renwu-weibo] 字体自动下载失败，将使用系统默认字体：${lastError instanceof Error ? lastError.message : String(lastError)}`)
 }
 
 function calculateFontHashes(buffer: Buffer) {
@@ -133,10 +134,4 @@ function verifyFontBuffer(buffer: Buffer, expected: FontIntegrity): boolean {
     && hashes.sha1 === expected.sha1
     && hashes.sha256 === expected.sha256
     && hashes.sha512 === expected.sha512
-}
-
-function debugLog(ctx: Context, config: Config, message: string) {
-  if (config.verboseConsoleLog) {
-    ctx.logger.info(`[sky-renwu-weibo] [debug] ${message}`)
-  }
 }

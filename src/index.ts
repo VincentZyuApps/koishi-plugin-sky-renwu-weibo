@@ -1,14 +1,17 @@
 import { Context, h, Session } from 'koishi'
 import type {} from '@koishijs/assets'
+import type {} from '@koishijs/plugin-server'
 import { Config, type Config as ConfigType } from './config'
 import { sendDailyResult } from './message'
+import { applyQQServices } from './qq/server'
 import { usage } from './usage'
-import { ensureRuntimeFonts } from './utils'
+import { ensureRuntimeFonts } from './utils/fonts'
+import { debugLog } from './utils/logger'
 import { createWeiboClient, fetchChineseServerDaily, type DailyResult } from './weibo'
 
 export const name = 'sky-renwu-weibo'
 export const inject = {
-  optional: ['puppeteer', 'assets'],
+  optional: ['puppeteer', 'assets', 'server'],
 }
 
 export { Config, usage }
@@ -22,6 +25,7 @@ export function apply(ctx: Context, config: ConfigType) {
   ensureRuntimeFonts(ctx, config).catch((error) => {
     logger.warn(`字体预检查失败，将使用系统默认字体：${error instanceof Error ? error.message : String(error)}`)
   })
+  applyQQServices(ctx)
 
   ctx.command(config.commandName, '获取光遇国服每日任务')
     .alias('今日光遇国服')
@@ -72,14 +76,4 @@ export function apply(ctx: Context, config: ConfigType) {
 
 function getQuotePrefix(session: Session, config: ConfigType) {
   return config.enableQuote && session.messageId ? h.quote(session.messageId) : ''
-}
-
-function debugLog(
-  logger: ReturnType<Context['logger']>,
-  config: ConfigType,
-  message: string,
-) {
-  if (config.verboseConsoleLog) {
-    logger.info(`[debug] ${message}`)
-  }
 }

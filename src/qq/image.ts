@@ -1,6 +1,4 @@
-export function bufferToDataUrl(buffer: Buffer, mime = 'image/jpeg') {
-  return `data:${mime};base64,${buffer.toString('base64')}`
-}
+import { DAILY_TASK_HINT_MARKDOWN } from '../templates/common/hint'
 
 export interface ImageDimensions {
   width: number
@@ -11,6 +9,18 @@ interface FitImageOptions {
   maxWidth: number
   maxHeight: number
   fallback: ImageDimensions
+}
+
+export function formatPuppeteerImageMarkdown(imageUrl: string, width = 900, height = 1200) {
+  return [
+    '# 光遇国服每日任务',
+    '',
+    DAILY_TASK_HINT_MARKDOWN,
+    '',
+    '## 微博图片',
+    '',
+    `![光遇国服每日任务卡片图 #${width}px #${height}px](${imageUrl})`,
+  ].join('\n')
 }
 
 export function getImageDimensions(buffer?: Buffer): ImageDimensions | null {
@@ -38,26 +48,6 @@ export function fitImageDimensions(dimensions: ImageDimensions | null | undefine
     width: Math.max(1, Math.round(normalized.width * ratio)),
     height: Math.max(1, Math.round(normalized.height * ratio)),
   }
-}
-
-export function addForwardNode(authorId: string | undefined, authorName: string, value: string) {
-  return `
-    <message>
-      <author ${authorId ? `id="${escapeAttr(authorId)}"` : ''} name="${escapeAttr(authorName)}"/>
-      ${value}
-    </message>`
-}
-
-export function getBotName(botSelf?: { userId?: string; username?: string; name?: string }) {
-  return botSelf?.username || botSelf?.name || '光遇每日任务'
-}
-
-function escapeAttr(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
 }
 
 function normalizeImageDimensions(dimensions?: ImageDimensions | null) {

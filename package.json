@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-sky-renwu-weibo",
   "description": "📅✅ 获取微博博主 @今天游离翻车了吗 的光遇国服每日任务，支持文字、图片、Puppeteer 卡片图和 QQ Markdown ✨",
-  "version": "0.1.15-beta.10+20260702",
+  "version": "0.2.0-beta.13+20260702",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -18,7 +18,8 @@
     "service": {
       "optional": [
         "puppeteer",
-        "assets"
+        "assets",
+        "server"
       ]
     }
   },
@@ -26,7 +27,8 @@
     "axios": "^1.18.1"
   },
   "devDependencies": {
-    "@koishijs/assets": "^1.1.2"
+    "@koishijs/assets": "^1.1.2",
+    "@koishijs/plugin-server": "^3.2.9"
   },
   "peerDependencies": {
     "koishi": "^4.18.7"

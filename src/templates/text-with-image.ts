@@ -1,6 +1,6 @@
 import { h } from 'koishi'
 import type { DailyResult } from '../weibo'
-import { bufferToDataUrl } from './common'
+import { bufferToDataUrl } from '../utils/image'
 import { formatDailyText } from './text'
 
 export function formatDailyTextWithImage(result: DailyResult) {

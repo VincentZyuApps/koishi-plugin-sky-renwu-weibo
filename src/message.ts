@@ -1,20 +1,23 @@
 import { Context, h, Session } from 'koishi'
-import { MSG_FORM, QQ_MARKDOWN_BUTTON_MODE, type Config, type MsgFormType } from './config'
-import { buildDailyKeyboard, formatPuppeteerImageMarkdown, QQ_MARKDOWN_BUTTON_ONLY_CONTENT, sendQQMarkdown } from './qq'
-import type { DailyResult } from './weibo'
+import { MSG_FORM, type Config, type MsgFormType } from './config'
+import {
+  hasAppendQQPuppeteerImageButtonMode,
+  normalizeQQButtonModes,
+  type QQMarkdownButtonMode,
+} from './qq/button'
+import { notifyInvalidQQButtonModes, notifyQQButtonSkip } from './qq/notify'
+import {
+  sendQQMarkdownMode,
+  sendQQPuppeteerImageWithButtons,
+  sendStandaloneQQButton,
+} from './qq/sender'
 import { formatDailyForward } from './templates/forward'
 import { formatDailyImageWithText } from './templates/image-with-text'
-import { renderDailyImage, type RenderedDailyImage } from './templates/puppeteer-image'
-import { formatDailyQQMarkdown } from './templates/qq-markdown'
+import { renderDailyImage } from './templates/puppeteer-image'
 import { formatDailyText } from './templates/text'
 import { formatDailyTextWithImage } from './templates/text-with-image'
-import { fitImageDimensions } from './templates/common'
-
-const QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE = {
-  maxWidth: 900,
-  maxHeight: 1200,
-  fallback: { width: 900, height: 1200 },
-}
+import { debugLog } from './utils/logger'
+import type { DailyResult } from './weibo'
 
 export function normalizeMsgForms(config: Config) {
   const rawForms = Array.isArray(config.msgFormArr) ? config.msgFormArr : []
@@ -43,6 +46,7 @@ export async function sendDailyResult(
   if (!msgForms.length) {
     return sendSessionMessage(session, config, '已获取到光遇每日任务，但未选择任何发送形式。')
   }
+
   const buttonModes = normalizeQQButtonModes(config)
   debugLog(logger, config, `消息发送形式: ${msgForms.join(', ') || '(empty)'}`)
   debugLog(logger, config, `QQ Markdown 按钮行为: ${buttonModes.join(', ') || '(empty)'}`)
@@ -140,46 +144,6 @@ async function sendDailyMode(
   }
 }
 
-async function sendStandaloneQQButton(
-  session: Session,
-  config: Config,
-  logger: ReturnType<Context['logger']>,
-  buttonModes: QQMarkdownButtonMode[],
-) {
-  if (!buttonModes.includes(QQ_MARKDOWN_BUTTON_MODE.STANDALONE)) return
-  debugLog(logger, config, '准备单独发送 QQ Markdown JSON 按钮消息')
-  if (session.platform !== 'qq') {
-    await notifyQQButtonSkip(session, config, logger, '单独发送 JSON 按钮消息只能在 QQ 官方 Bot 平台使用。')
-    return
-  }
-
-  await sendWithModeGuard(logger, 'qq-markdown-button', () =>
-    sendQQMarkdown(session, QQ_MARKDOWN_BUTTON_ONLY_CONTENT, buildDailyKeyboard(config), true),
-  )
-}
-
-async function sendQQMarkdownMode(
-  session: Session,
-  config: Config,
-  result: DailyResult,
-  logger: ReturnType<Context['logger']>,
-  buttonModes: QQMarkdownButtonMode[],
-) {
-  if (session.platform !== 'qq') {
-    await notifyQQButtonSkip(session, config, logger, 'QQ Markdown 正文消息只能在 QQ 官方 Bot 平台使用。')
-    return
-  }
-
-  const keyboard = buttonModes.includes(QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN)
-    ? buildDailyKeyboard(config)
-    : null
-  debugLog(logger, config, `发送 QQ Markdown 正文消息，按钮挂载: ${keyboard ? 'yes' : 'no'}`)
-
-  await sendWithModeGuard(logger, MSG_FORM.QQ_MARKDOWN, () =>
-    sendQQMarkdown(session, formatDailyQQMarkdown(result, config), keyboard, true),
-  )
-}
-
 async function sendPuppeteerImageMode(
   ctx: Context,
   session: Session,
@@ -190,7 +154,7 @@ async function sendPuppeteerImageMode(
 ) {
   if (!ctx.puppeteer) {
     logger.warn('跳过 Puppeteer 卡片图: 当前 Koishi 未启用 puppeteer 服务。')
-    if (buttonModes.includes(QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE)) {
+    if (hasAppendQQPuppeteerImageButtonMode(buttonModes)) {
       await notifyQQButtonSkip(session, config, logger, 'Puppeteer 卡片图按钮需要启用 Koishi puppeteer 服务，但当前未启用。')
     }
     return
@@ -200,7 +164,8 @@ async function sendPuppeteerImageMode(
     debugLog(logger, config, `开始渲染 Puppeteer 卡片图: type=${config.imageType}, width=${config.imageWidth}, quality=${config.screenshotQuality}`)
     const renderedImage = await renderDailyImage(ctx, result, config)
     debugLog(logger, config, `Puppeteer 卡片图渲染完成: base64Length=${renderedImage.base64.length}, size=${renderedImage.width}x${renderedImage.height}`)
-    if (buttonModes.includes(QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE)) {
+
+    if (hasAppendQQPuppeteerImageButtonMode(buttonModes)) {
       await sendQQPuppeteerImageWithButtons(ctx, session, config, renderedImage, logger)
       return
     }
@@ -209,104 +174,6 @@ async function sendPuppeteerImageMode(
   })
 }
 
-async function sendQQPuppeteerImageWithButtons(
-  ctx: Context,
-  session: Session,
-  config: Config,
-  renderedImage: RenderedDailyImage,
-  logger: ReturnType<Context['logger']>,
-) {
-  if (session.platform !== 'qq') {
-    await notifyQQButtonSkip(session, config, logger, 'Puppeteer 卡片图按钮只能在 QQ 官方 Bot 平台使用。')
-    return sendSessionMessage(session, config, toImageMessage(config, renderedImage.base64))
-  }
-
-  if (!ctx.assets) {
-    await notifyQQButtonSkip(session, config, logger, 'Puppeteer 卡片图按钮需要启用 Koishi assets 服务，但当前未启用。')
-    return sendSessionMessage(session, config, toImageMessage(config, renderedImage.base64))
-  }
-
-  const dataUrl = `data:image/${config.imageType};base64,${renderedImage.base64}`
-  const filename = `sky-renwu-weibo.${config.imageType}`
-  let imageUrl = ''
-  try {
-    debugLog(logger, config, `开始上传 Puppeteer 卡片图到 assets: ${filename}`)
-    imageUrl = await ctx.assets.upload(dataUrl, filename)
-    debugLog(logger, config, `assets 上传完成: ${imageUrl}`)
-  } catch (error) {
-    await notifyQQButtonSkip(session, config, logger, `Puppeteer 卡片图上传 assets 失败：${error instanceof Error ? error.message : String(error)}`)
-    return sendSessionMessage(session, config, toImageMessage(config, renderedImage.base64))
-  }
-
-  if (!/^https?:\/\//i.test(imageUrl)) {
-    await notifyQQButtonSkip(session, config, logger, `assets 返回的图片地址不是公网 HTTP(S) URL：${imageUrl}`)
-    return sendSessionMessage(session, config, toImageMessage(config, renderedImage.base64))
-  }
-
-  const dimensions = fitImageDimensions(renderedImage, QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE)
-  debugLog(logger, config, `发送 QQ Markdown Puppeteer 卡片图并附带按钮: markdownSize=${dimensions.width}x${dimensions.height}`)
-  await sendQQMarkdown(session, formatPuppeteerImageMarkdown(imageUrl, dimensions.width, dimensions.height), buildDailyKeyboard(config), true)
-}
-
 function toImageMessage(config: Config, imageBase64: string) {
   return h.image(`data:image/${config.imageType};base64,${imageBase64}`)
-}
-
-type QQMarkdownButtonMode = typeof QQ_MARKDOWN_BUTTON_MODE[keyof typeof QQ_MARKDOWN_BUTTON_MODE]
-
-function normalizeQQButtonModes(config: Config): QQMarkdownButtonMode[] {
-  const rawModes = Array.isArray(config.qqMarkdownButtonMode)
-    ? config.qqMarkdownButtonMode
-    : [config.qqMarkdownButtonMode].filter(Boolean)
-
-  const seen = new Set<string>()
-  const modes: QQMarkdownButtonMode[] = []
-  for (const mode of rawModes) {
-    const normalized = String(mode || '').trim() as QQMarkdownButtonMode
-    if (!normalized || seen.has(normalized)) continue
-    seen.add(normalized)
-    modes.push(normalized)
-  }
-  return modes
-}
-
-async function notifyQQButtonSkip(
-  session: Session,
-  config: Config,
-  logger: ReturnType<Context['logger']>,
-  reason: string,
-) {
-  const message = `QQ Markdown 按钮未发送：${reason}`
-  if (session.platform === 'qq' || config.verboseConsoleLog) {
-    logger.warn(message)
-  }
-  if (session.platform === 'qq' || config.verboseSessionLog) {
-    await sendSessionMessage(session, config, message)
-  }
-}
-
-function debugLog(
-  logger: ReturnType<Context['logger']>,
-  config: Config,
-  message: string,
-) {
-  if (config.verboseConsoleLog) {
-    logger.info(`[debug] ${message}`)
-  }
-}
-
-async function notifyInvalidQQButtonModes(
-  session: Session,
-  config: Config,
-  msgForms: string[],
-  logger: ReturnType<Context['logger']>,
-  buttonModes: QQMarkdownButtonMode[],
-) {
-  if (buttonModes.includes(QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN) && !msgForms.includes(MSG_FORM.QQ_MARKDOWN)) {
-    await notifyQQButtonSkip(session, config, logger, '按钮行为 append-qq-markdown 需要在消息发送形式表格中启用 qq-markdown。')
-  }
-
-  if (buttonModes.includes(QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE) && !msgForms.includes(MSG_FORM.PUPPETEER_IMAGE)) {
-    await notifyQQButtonSkip(session, config, logger, '按钮行为 append-puppeteer-image 需要在消息发送形式表格中启用 puppeteer-image。')
-  }
 }

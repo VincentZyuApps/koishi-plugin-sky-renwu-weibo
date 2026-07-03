@@ -37,10 +37,12 @@ export const usage = `
 <p>🤖 光遇 Bot / QQ 官方 Bot / Koishi 相关交流，也欢迎加入光遇 Bot QQ 群：<b style="color: #EA5252;">475328908</b></p>
 <p>💡 在群里直接艾特我，回复的更快哦~ ✨</p>
 
-<h2 style="color: #ff8a00; font-weight: 900; font-size: 24px; margin: 20px 0;">🧩 可选依赖：按需开启 <b>puppeteer</b> 和 <b>assets</b> 服务</h2>
+<h2 style="color: #ff8a00; font-weight: 900; font-size: 24px; margin: 20px 0;">🧩 可选依赖：按需开启 <b>puppeteer</b>、<b>assets</b> 和 <b>server</b> 服务</h2>
 <p><b>🖼️ puppeteer 是可选服务：</b>只有启用 <code>puppeteer-image</code> 卡片图发送形式时才需要，用于把每日任务渲染成图片。</p>
-<p><b>🌐 assets 是可选服务：</b>只有启用 QQ Markdown 按钮行为 <code>append-puppeteer-image</code> 时才需要，用于把 Puppeteer 卡片图上传成 QQ 官方 Bot 可访问的公网图片 URL。</p>
-<p><b>⚠️ 提醒：</b>如果要让 QQ 官方 Bot 访问 assets 图片，请确保 Koishi <code>assets</code> 的 <code>selfUrl</code> 公网可访问。</p>
+<p><b>🌐 assets / server 是可选服务：</b>只有启用 QQ Markdown 按钮行为 <code>append-puppeteer-image</code> 时才会按配置模式使用，用于把 Puppeteer 卡片图转换成 QQ 官方 Bot 可访问的公网图片 URL。</p>
+<p><b>🧷 standalone 与 append-qq-markdown：</b>这两种按钮行为不会使用上面的 assets / server 配置，也不依赖它们。</p>
+<p><b>⚠️ assets 模式：</b>只能新增图片，不能删除，文件名由 assets 服务决定，通常无法自定义。</p>
+<p><b>⚠️ server 模式：</b>会把临时图片写到 <code>ctx.baseDir/cache/sky-renwu-weibo</code>，支持时间命名，并按数量上限仅保留最新图片；<code>qqMarkdownPuppeteerImageMaxFiles &lt;= 0</code> 表示不设置上限。请确保本插件配置的公网 URL 或 Koishi <code>server.selfUrl</code> 可被 QQ 官方 Bot 访问。</p>
 
 <p>通过微博 Ajax 获取光遇国服每日任务，默认数据源为 <a href="https://weibo.com/u/7360748659" target="_blank"><code>@今天游离翻车了吗</code></a>。</p>
 

@@ -1,6 +1,6 @@
 import { Schema } from 'koishi'
-import { DEFAULT_QQ_MARKDOWN_KEYBOARD, stringifyCompact } from './qq'
-import { DEFAULT_LXGW_WENKAI_PATH } from './utils'
+import { DEFAULT_QQ_MARKDOWN_KEYBOARD, stringifyCompact } from './qq/keyboard'
+import { DEFAULT_LXGW_WENKAI_PATH } from './utils/fonts'
 
 // ================================
 // ⚙️ 插件配置入口：类型、枚举、Schema 都放这里
@@ -39,6 +39,15 @@ export const QQ_MARKDOWN_BUTTON_MODE = {
 
 export type QQMarkdownButtonModeType = typeof QQ_MARKDOWN_BUTTON_MODE[keyof typeof QQ_MARKDOWN_BUTTON_MODE]
 
+/** 🗂️ append-puppeteer-image 的图片 URL 生成模式 */
+export const QQ_MARKDOWN_PUPPETEER_IMAGE_STORAGE_MODE = {
+  ASSETS: 'assets',
+  SERVER: 'server',
+} as const
+
+export type QQMarkdownPuppeteerImageStorageModeType =
+  typeof QQ_MARKDOWN_PUPPETEER_IMAGE_STORAGE_MODE[keyof typeof QQ_MARKDOWN_PUPPETEER_IMAGE_STORAGE_MODE]
+
 export interface MsgFormEntry {
   mode: MsgFormType
   enabled: boolean
@@ -76,6 +85,9 @@ export interface Config {
   // ==================
   // 🤖 QQ 官方 Bot Markdown 配置字段
   // ==================
+  qqMarkdownPuppeteerImageStorageMode: QQMarkdownPuppeteerImageStorageModeType
+  qqMarkdownPuppeteerImageSelfUrl: string
+  qqMarkdownPuppeteerImageMaxFiles: number
   qqMarkdownMode: QQMarkdownModeType
   qqMarkdownButtonMode: QQMarkdownButtonModeType[]
   qqMarkdownKeyboardJson: string
@@ -158,12 +170,12 @@ export const Config: Schema<Config> = Schema.intersect([
       .description('⏳ 是否启用「获取并生成中.... 请耐心等待」提示消息。每日任务消息全部发送完成后会尝试撤回。'),
     msgFormArr: Schema.array(Schema.object({
       mode: Schema.union([
-        Schema.const(MSG_FORM.TEXT_WITH_IMAGE).description(`【${MSG_FORM.TEXT_WITH_IMAGE}】先文后图 (一条消息内先发送微博长文本，再发送全部图片)`),
-        Schema.const(MSG_FORM.IMAGE_WITH_TEXT).description(`【${MSG_FORM.IMAGE_WITH_TEXT}】先图后文 (一条消息内先发送全部图片，再发送微博长文本)`),
-        Schema.const(MSG_FORM.TEXT).description(`【${MSG_FORM.TEXT}】纯文字 (只发送微博长文本、数据来源和原文链接)`),
-        Schema.const(MSG_FORM.FORWARD).description(`【${MSG_FORM.FORWARD}】图文合并转发 (把文字和图片打包进 OneBot 合并转发)`),
-        Schema.const(MSG_FORM.PUPPETEER_IMAGE).description(`【${MSG_FORM.PUPPETEER_IMAGE}】Puppeteer 卡片图 (把文字和微博图片排版成圆角卡片图)`),
-        Schema.const(MSG_FORM.QQ_MARKDOWN).description(`【${MSG_FORM.QQ_MARKDOWN}】QQ Markdown (只有 QQ 官方 Bot 平台能用)`),
+        Schema.const(MSG_FORM.TEXT_WITH_IMAGE).description(`【📝 ${MSG_FORM.TEXT_WITH_IMAGE}】先文后图 (一条消息内先发送微博长文本，再发送全部图片)`),
+        Schema.const(MSG_FORM.IMAGE_WITH_TEXT).description(`【🖼️ ${MSG_FORM.IMAGE_WITH_TEXT}】先图后文 (一条消息内先发送全部图片，再发送微博长文本)`),
+        Schema.const(MSG_FORM.TEXT).description(`【🔤 ${MSG_FORM.TEXT}】纯文字 (只发送微博长文本、数据来源和原文链接)`),
+        Schema.const(MSG_FORM.FORWARD).description(`【📦 ${MSG_FORM.FORWARD}】图文合并转发 (把文字和图片打包进 OneBot 合并转发)`),
+        Schema.const(MSG_FORM.PUPPETEER_IMAGE).description(`【🎨 ${MSG_FORM.PUPPETEER_IMAGE}】Puppeteer 卡片图 (把文字和微博图片排版成圆角卡片图)`),
+        Schema.const(MSG_FORM.QQ_MARKDOWN).description(`【🤖 ${MSG_FORM.QQ_MARKDOWN}】QQ Markdown (只有 QQ 官方 Bot 平台能用)`),
       ])
         .role('radio')
         .description('发送形式'),
@@ -182,12 +194,12 @@ export const Config: Schema<Config> = Schema.intersect([
       ])
       .description([
         '每日任务发送形式表格，可调整顺序，可启用 / 禁用',
-        `【${MSG_FORM.TEXT_WITH_IMAGE}】先文后图 (一条消息内先发送微博长文本，再发送全部图片)`,
-        `【${MSG_FORM.IMAGE_WITH_TEXT}】先图后文 (一条消息内先发送全部图片，再发送微博长文本)`,
-        `【${MSG_FORM.TEXT}】纯文字 (只发送微博长文本、数据来源和原文链接)`,
-        `【${MSG_FORM.FORWARD}】图文合并转发 (把文字和图片打包进 OneBot 合并转发，只适合 OneBot 平台)`,
-        `【${MSG_FORM.PUPPETEER_IMAGE}】Puppeteer 卡片图 (把文字和微博图片排版成圆角卡片图，适合任何平台)`,
-        `【${MSG_FORM.QQ_MARKDOWN}】QQ Markdown (发送 QQ 官方 Bot Markdown 正文消息，只有 QQ 官方 Bot 平台能用)`,
+        `【📝 ${MSG_FORM.TEXT_WITH_IMAGE}】先文后图 (一条消息内先发送微博长文本，再发送全部图片)`,
+        `【🖼️ ${MSG_FORM.IMAGE_WITH_TEXT}】先图后文 (一条消息内先发送全部图片，再发送微博长文本)`,
+        `【🔤 ${MSG_FORM.TEXT}】纯文字 (只发送微博长文本、数据来源和原文链接)`,
+        `【📦 ${MSG_FORM.FORWARD}】图文合并转发 (把文字和图片打包进 OneBot 合并转发，只适合 OneBot 平台)`,
+        `【🎨 ${MSG_FORM.PUPPETEER_IMAGE}】Puppeteer 卡片图 (把文字和微博图片排版成圆角卡片图，适合任何平台)`,
+        `【🤖 ${MSG_FORM.QQ_MARKDOWN}】QQ Markdown (发送 QQ 官方 Bot Markdown 正文消息，只有 QQ 官方 Bot 平台能用)`,
         '⚠️ 如果启用了多个相同发送形式，只有第一个会生效',
       ].join('<br/>')),
     strictOrderMode: Schema.boolean()
@@ -204,29 +216,60 @@ export const Config: Schema<Config> = Schema.intersect([
   // 🤖 QQ 官方 Bot Markdown 适配配置分组
   // ==================
   Schema.object({
+    qqMarkdownPuppeteerImageStorageMode: Schema.union([
+      Schema.const(QQ_MARKDOWN_PUPPETEER_IMAGE_STORAGE_MODE.ASSETS).description('【🌐 assets】使用 Koishi assets 服务发送 Markdown 内嵌图片'),
+      Schema.const(QQ_MARKDOWN_PUPPETEER_IMAGE_STORAGE_MODE.SERVER).description('【🗂️ server】使用 Koishi server 服务发送 Markdown 内嵌图片'),
+    ])
+      .role('radio')
+      .default(QQ_MARKDOWN_PUPPETEER_IMAGE_STORAGE_MODE.SERVER)
+      .description([
+        '🗂️ append-puppeteer-image 的图片 URL 生成模式。仅在按钮行为勾选 append-puppeteer-image，且消息发送形式启用 puppeteer-image 时生效。standalone 与 append-qq-markdown 不使用此配置，也不依赖 assets 或 server。',
+        '【🌐 assets】生成公网图片 URL。只能新增，不能删除，文件名由 assets 服务决定，通常无法自定义。',
+        '【🗂️ server】从 ctx.baseDir/cache/sky-renwu-weibo 暴露临时图片。支持 yyyyMMdd-HHmmss 命名，并按数量上限仅保留最新图片。',
+      ].join('<br>')),
+    qqMarkdownPuppeteerImageSelfUrl: Schema.string()
+      .role('textarea', { rows: [2, 5] })
+      .default('')
+      .description([
+        '🌐 server 模式的公网 URL 覆盖值。',
+        '示例：<code>http://your-public-ip:your-port</code>。',
+        '仅在按钮行为勾选 append-puppeteer-image，且图片 URL 生成模式为 server 时生效。',
+        '留空则回退 ctx.server.config.selfUrl。',
+        'standalone 与 append-qq-markdown 不使用此配置。',
+      ].join('<br/>')),
+    qqMarkdownPuppeteerImageMaxFiles: Schema.number()
+      .step(1)
+      .default(5)
+      .description([
+        '🗃️ server 模式缓存图片数量上限。',
+        '仅在按钮行为勾选 append-puppeteer-image，且图片 URL 生成模式为 server 时生效。',
+        '缓存目录固定为 ctx.baseDir/cache/sky-renwu-weibo；仅保留最新 N 张，填写 <= 0 表示不设置上限。',
+        'standalone 与 append-qq-markdown 不使用此配置。',
+      ].join('<br/><br/>')),
     qqMarkdownMode: Schema.union([
-      Schema.const(QQ_MARKDOWN_MODE.STRUCTURED).description(`【${QQ_MARKDOWN_MODE.STRUCTURED}】按正则整理段落 (尝试识别标题、任务条目和来源信息，排版更清晰)`),
-      Schema.const(QQ_MARKDOWN_MODE.BLOCKQUOTE).description(`【${QQ_MARKDOWN_MODE.BLOCKQUOTE}】全文引用块 (把所有原文逐行放进 > 引用块)`),
+      Schema.const(QQ_MARKDOWN_MODE.STRUCTURED).description(`【🧩 ${QQ_MARKDOWN_MODE.STRUCTURED}】按正则整理段落 (尝试识别标题、任务条目和来源信息，排版更清晰)`),
+      Schema.const(QQ_MARKDOWN_MODE.BLOCKQUOTE).description(`【💬 ${QQ_MARKDOWN_MODE.BLOCKQUOTE}】全文引用块 (把所有原文逐行放进 > 引用块)`),
     ])
       .role('radio')
       .default(QQ_MARKDOWN_MODE.STRUCTURED)
       .description([
         'QQ Markdown 文案整理模式',
-        `【${QQ_MARKDOWN_MODE.STRUCTURED}】按正则整理段落 (尝试识别标题、任务条目和来源信息，排版更清晰)`,
-        `【${QQ_MARKDOWN_MODE.BLOCKQUOTE}】全文引用块 (简单粗暴地把所有原文逐行放进 > 引用块)`,
+        `【🧩 ${QQ_MARKDOWN_MODE.STRUCTURED}】按正则整理段落 (尝试识别标题、任务条目和来源信息，排版更清晰)`,
+        `【💬 ${QQ_MARKDOWN_MODE.BLOCKQUOTE}】全文引用块 (简单粗暴地把所有原文逐行放进 > 引用块)`,
       ].join('<br/>')),
     qqMarkdownButtonMode: Schema.array(Schema.union([
-      Schema.const(QQ_MARKDOWN_BUTTON_MODE.STANDALONE).description(`【${QQ_MARKDOWN_BUTTON_MODE.STANDALONE}】单独发送 JSON 按钮消息 (固定发送“## 光遇任务操作按钮”并附带按钮)`),
-      Schema.const(QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN).description(`【${QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN}】挂在 QQ Markdown 后面 (必须启用 qq-markdown 发送形式)`),
-      Schema.const(QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE).description(`【${QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE}】挂在 Puppeteer 卡片图后面 (必须启用 puppeteer-image 发送形式，并启用 Koishi assets 服务)`),
+      Schema.const(QQ_MARKDOWN_BUTTON_MODE.STANDALONE).description(`【🧷 ${QQ_MARKDOWN_BUTTON_MODE.STANDALONE}】单独发送 JSON 按钮消息`),
+      Schema.const(QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN).description(`【📎 ${QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN}】挂在 QQ Markdown 后面`),
+      Schema.const(QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE).description(`【🖼️ ${QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE}】挂在 Puppeteer 卡片图后面`),
     ]))
       .role('checkbox')
       .default([QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN, QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE])
       .description([
         'QQ Markdown 按钮发送行为，可多选',
-        `【${QQ_MARKDOWN_BUTTON_MODE.STANDALONE}】单独发送 JSON 按钮消息 (固定发送“## 光遇任务操作按钮”并附带按钮)`,
-        `【${QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN}】挂在 QQ Markdown 后面 (必须启用 qq-markdown 发送形式)`,
-        `【${QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE}】挂在 Puppeteer 卡片图后面 (必须启用 puppeteer-image 发送形式，并启用 Koishi assets 服务)`,
+        `【🧷 ${QQ_MARKDOWN_BUTTON_MODE.STANDALONE}】单独发送 JSON 按钮消息`,
+        `【📎 ${QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN}】挂在 QQ Markdown 后面`,
+        `【🖼️ ${QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE}】挂在 Puppeteer 卡片图后面`,
+        '⚠️ append-puppeteer-image 才会使用上方的 assets/server 配置；standalone 与 append-qq-markdown 不使用它们。',
         '不想发送 QQ 按钮时保持空选即可。条件不满足时只提醒，不自动补发。',
       ].join('<br/>')),
     qqMarkdownKeyboardJson: Schema.string()
@@ -281,6 +324,6 @@ export const Config: Schema<Config> = Schema.intersect([
       .description('💬 是否在会话中输出详细调试信息。关闭时非 QQ 平台的 QQ Markdown 按钮跳过提醒不会发送到会话；开启后会同步发送到会话。'),
     verboseConsoleLog: Schema.boolean()
       .default(false)
-      .description('🧾 是否在控制台输出详细调试信息。关闭时非 QQ 平台的 QQ Markdown 按钮跳过提醒不会输出到控制台；开启后会输出缓存、微博抓取、渲染、发送、assets 上传和字体检查细节。'),
+      .description('🧾 是否在控制台输出详细调试信息。关闭时非 QQ 平台的 QQ Markdown 按钮跳过提醒不会输出到控制台；开启后会输出缓存、微博抓取、渲染、发送、assets/server 图片 URL 生成和字体检查细节。'),
   }).description('🐛 调试配置'),
 ])

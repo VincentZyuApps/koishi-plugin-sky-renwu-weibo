@@ -6,7 +6,7 @@
 
 > [!IMPORTANT]
 >
-> 这个脚本只使用 Python 标准库，不需要安装任何第三方库，也不需要 `pip install`。
+> 这个脚本只使用 Python 标准库，不需要安装任何第三方库，即 不需要 `pip install`。
 >
 > 建议使用 Python `3.10` - `3.13`，优先推荐和作者同款的 Python `3.13`。脚本使用了 Python 3.10+ 的类型标注语法，Python 3.9 及以下不建议使用。
 
