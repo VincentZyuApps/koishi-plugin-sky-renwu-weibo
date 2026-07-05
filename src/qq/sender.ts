@@ -10,7 +10,7 @@ import {
   type QQMarkdownButtonMode,
 } from './button'
 import { uploadQQMarkdownPuppeteerImageViaAssets } from './assets'
-import { formatPuppeteerImageMarkdown, fitImageDimensions } from './image'
+import { formatPuppeteerImageMarkdown, fitImageDimensionsByWidth } from './image'
 import { buildDailyKeyboard, QQ_MARKDOWN_BUTTON_ONLY_CONTENT } from './keyboard'
 import { sendQQMarkdown } from './markdown'
 import { notifyQQButtonSkip } from './notify'
@@ -18,7 +18,6 @@ import { storeQQMarkdownPuppeteerImage } from './server'
 
 const QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE = {
   maxWidth: 900,
-  maxHeight: 1200,
   fallback: { width: 900, height: 1200 },
 }
 
@@ -92,8 +91,8 @@ export async function sendQQPuppeteerImageWithButtons(
     }
   }
 
-  const dimensions = fitImageDimensions(renderedImage, QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE)
-  logInfo(ctx, config, '', `发送 QQ Markdown Puppeteer 卡片图并附带按钮: markdownSize=${dimensions.width}x${dimensions.height}`)
+  const dimensions = fitImageDimensionsByWidth(renderedImage, QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE)
+  logInfo(ctx, config, '', `发送 QQ Markdown Puppeteer 卡片图并附带按钮: rawSize=${renderedImage.width}x${renderedImage.height}, markdownSize=${dimensions.width}x${dimensions.height}`)
   await sendQQMarkdown(session, formatPuppeteerImageMarkdown(imageUrl, dimensions.width, dimensions.height), buildDailyKeyboard(config), true)
 }
 

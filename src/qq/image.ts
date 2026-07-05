@@ -11,6 +11,11 @@ interface FitImageOptions {
   fallback: ImageDimensions
 }
 
+interface FitImageByWidthOptions {
+  maxWidth: number
+  fallback: ImageDimensions
+}
+
 export function formatPuppeteerImageMarkdown(imageUrl: string, width = 900, height = 1200) {
   return [
     '# 光遇国服每日任务',
@@ -47,6 +52,20 @@ export function fitImageDimensions(dimensions: ImageDimensions | null | undefine
   return {
     width: Math.max(1, Math.round(normalized.width * ratio)),
     height: Math.max(1, Math.round(normalized.height * ratio)),
+  }
+}
+
+export function fitImageDimensionsByWidth(
+  dimensions: ImageDimensions | null | undefined,
+  options: FitImageByWidthOptions,
+): ImageDimensions {
+  const normalized = normalizeImageDimensions(dimensions)
+  if (!normalized) return options.fallback
+
+  const width = Math.max(1, Math.round(Math.min(normalized.width, options.maxWidth)))
+  return {
+    width,
+    height: Math.max(1, Math.round(normalized.height * width / normalized.width)),
   }
 }
 
