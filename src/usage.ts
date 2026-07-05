@@ -63,11 +63,21 @@ export const usage = `
 </pre>
 
 <p>命令名称可在配置项 <code>commandName</code> 中修改。</p>
+<p>可用 <code>--weibo &lt;mode&gt;</code> 临时覆盖微博访问策略，优先级高于配置项 <code>weiboAccessMode</code>。<code>mode</code> 不区分大小写，可选：<code>cookie-only</code> / <code>guest-only</code> / <code>cookie-then-guest</code> / <code>guest-then-cookie</code>。</p>
+<pre>
+<code>今日光遇国服任务 --weibo guest-only
+今日光遇国服任务 --weibo COOKIE-ONLY</code>
+</pre>
 
 <h3>🔐 微博访问策略与 Cookie</h3>
 
-<p>推荐保持默认访问策略 D：先尝试移动端无登录用户态，失败或未匹配到今日任务时再 fallback 到 PC 微博网页登录态。</p>
-<p>默认情况下可以先不填写 <code>weiboCookie</code>。如果移动端公开接口受限、无登录用户态没有匹配到今日任务，或想提高兜底稳定性，再运行仓库内的辅助脚本打开浏览器手动登录：</p>
+<p>推荐保持默认访问策略 【D】：先尝试移动端无登录用户态，失败或未匹配到今日任务时再 fallback 到 PC 微博网页登录态。</p>
+<p>默认情况下可以先不填写 <code>weiboCookie</code>。如果移动端公开接口受限、无登录用户态没有匹配到今日任务，或想提高兜底稳定性，再使用 PC 微博网页登录态作为 fallback。</p>
+
+<details>
+<summary><h3>🔐 Cookie 获取和安全说明（点击展开）</h3></summary>
+
+<p>需要 Cookie fallback 时，可以运行仓库内的辅助脚本打开浏览器手动登录：</p>
 <p>Cookie 辅助脚本只使用 Python 标准库，也不需要 <code>pip install</code>。</p>
 
 <p>由于安全原因，插件不会内置任何微博登录 Cookie，也不建议把 Cookie 写进源码、README、issue 或聊天记录中。请自行登录微博并获取自己的 Cookie。</p>
@@ -82,7 +92,8 @@ export const usage = `
 
 <p>登录完成后，脚本会生成 <code>scripts/20260630/weibo_cookie.private.txt</code>，把文件内容填入插件配置项 <code>weiboCookie</code>。访问策略 A/C/D 会使用这个配置项，策略 B 不使用它；插件不会自动读取本地 txt 文件。</p>
 
-<h3>⚠️ 注意</h3>
+<h4>⚠️ 注意</h4>
 
 <p><code>weibo_cookie.private.txt</code>、<code>latest.debug.log</code> 和 <code>.browser-profile</code> 都包含隐私信息，不要发给别人，也不要提交到 Git。</p>
+</details>
 `

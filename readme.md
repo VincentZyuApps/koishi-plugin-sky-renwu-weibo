@@ -49,6 +49,22 @@
 
 命令名称可以在配置项 `commandName` 中修改。
 
+可以用命令选项临时覆盖微博访问策略，优先级为：`--weibo` 命令选项 > `weiboAccessMode` 配置项。`mode` 不区分大小写，可用值为：
+
+```text
+cookie-only
+guest-only
+cookie-then-guest
+guest-then-cookie
+```
+
+示例：
+
+```text
+今日光遇国服任务 --weibo guest-only
+今日光遇国服任务 --weibo COOKIE-ONLY
+```
+
 ## 🔐 微博访问策略与 Cookie
 
 推荐保持默认访问策略 D：先尝试移动端无登录用户态，失败或未匹配到今日任务时再 fallback 到 PC 微博网页登录态。
@@ -152,7 +168,7 @@ scripts/
 |---|---|---|---|
 | `uid` | `string` | `"7360748659"` | 微博用户 UID，默认是 [`@今天游离翻车了吗`](https://weibo.com/u/7360748659) |
 | `authorName` | `string` | `"今天游离翻车了吗"` | 来源作者显示名，会展示在数据来源署名里 |
-| `weiboAccessMode` | `"cookie-only" \| "guest-only" \| "cookie-then-guest" \| "guest-then-cookie"` | `"guest-then-cookie"` | 微博访问策略：A 仅 PC 微博网页登录态、B 仅无登录用户态、C 先 PC 网页登录态后无登录、D 先无登录后 PC 网页登录态 |
+| `weiboAccessMode` | `"cookie-only" \| "guest-only" \| "cookie-then-guest" \| "guest-then-cookie"` | `"guest-then-cookie"` | 微博访问策略：A 仅 PC 微博网页登录态、B 仅无登录用户态、C 先 PC 网页登录态后无登录、D 先无登录后 PC 网页登录态；命令选项 `--weibo <mode>` 可临时覆盖此配置，优先级更高 |
 | `weiboCookie` | `string` | `""` | PC 微博网页登录 Cookie；访问策略 A/C/D 会使用这个配置项，可用 `scripts/20260630/weibo_cookie.py` 导出后手动复制，不会自动读取本地 txt |
 | `matchPattern` | `string` | 默认正则 | 筛选每日任务微博的正则表达式，微博文案格式变化时可调整 |
 | `cacheMinutes` | `number` | `20` | 内存缓存分钟数；`0` 表示不缓存 |

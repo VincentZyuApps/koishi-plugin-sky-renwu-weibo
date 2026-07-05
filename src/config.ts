@@ -152,7 +152,7 @@ export const Config: Schema<Config> = Schema.intersect([
     ])
       .role('radio')
       .default(WEIBO_ACCESS_MODE.GUEST_THEN_COOKIE)
-      .description('🔐 微博访问策略。默认 D：先尝试无登录用户态，必要时再使用 weiboCookie。'),
+      .description('🔐 微博访问策略。默认 D：先尝试无登录用户态，必要时再使用 weiboCookie。命令选项 <code>--weibo &lt;mode&gt;</code> 可临时覆盖此配置，优先级高于配置项。'),
     weiboCookie: Schema.string()
       .role('secret')
       .role('textarea', { rows: [2, 5] })
