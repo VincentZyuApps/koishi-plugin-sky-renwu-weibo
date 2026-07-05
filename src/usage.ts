@@ -64,20 +64,23 @@ export const usage = `
 
 <p>命令名称可在配置项 <code>commandName</code> 中修改。</p>
 
-<h3>🔐 微博 Cookie</h3>
+<h3>🔐 微博访问策略与 Cookie</h3>
 
-<p>微博接口通常需要登录 Cookie。可以运行仓库内的辅助脚本打开浏览器手动登录：</p>
+<p>推荐保持默认访问策略 D：先尝试移动端无登录用户态，失败或未匹配到今日任务时再 fallback 到 PC 微博网页登录态。</p>
+<p>默认情况下可以先不填写 <code>weiboCookie</code>。如果移动端公开接口受限、无登录用户态没有匹配到今日任务，或想提高兜底稳定性，再运行仓库内的辅助脚本打开浏览器手动登录：</p>
 <p>Cookie 辅助脚本只使用 Python 标准库，也不需要 <code>pip install</code>。</p>
 
 <p>由于安全原因，插件不会内置任何微博登录 Cookie，也不建议把 Cookie 写进源码、README、issue 或聊天记录中。请自行登录微博并获取自己的 Cookie。</p>
 
-<p>由于浏览器安全策略和跨域限制，Koishi Console 页面暂时无法直接读取 <code>weibo.com</code> 的登录 Cookie，因此获取 Cookie 的流程目前没有内置到浏览器 WebUI 中。后续如果找到更稳定、安全的实现方式，可能会在新版本中提供更方便的获取流程。</p>
+<p>当前推荐配置流程是：先保持默认 D 使用移动端无登录用户态；需要 Cookie fallback 时，再通过 Python 脚本使用 CDP 获取本机 PC 浏览器里的 <code>weibo.com</code> 登录态，并把导出的 Cookie 复制到 Koishi 配置项 <code>weiboCookie</code>。</p>
+
+<p>由于浏览器安全策略和跨域限制，Koishi Console 页面暂时无法直接读取 <code>weibo.com</code> 的登录 Cookie，因此获取 Cookie 的流程目前没有内置到浏览器 WebUI 中。插件运行时也不会自动读取本地 <code>weibo_cookie.private.txt</code>，这个文件只用于把内容复制到配置项。</p>
 
 <pre>
 <code>python scripts/20260630/weibo_cookie.py --browser "chrome浏览器可执行文件路径"</code>
 </pre>
 
-<p>登录完成后，脚本会生成 <code>scripts/20260630/weibo_cookie.private.txt</code>，把文件内容填入插件配置项 <code>weiboCookie</code>。</p>
+<p>登录完成后，脚本会生成 <code>scripts/20260630/weibo_cookie.private.txt</code>，把文件内容填入插件配置项 <code>weiboCookie</code>。访问策略 A/C/D 会使用这个配置项，策略 B 不使用它；插件不会自动读取本地 txt 文件。</p>
 
 <h3>⚠️ 注意</h3>
 

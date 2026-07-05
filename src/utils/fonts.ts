@@ -74,7 +74,7 @@ export async function ensureRuntimeFonts(ctx: Context, config: Config) {
   }
 
   if (existsSync(fontPath)) {
-    logInfo(ctx, config, `[sky-renwu-weibo] ${LXGW_WENKAI_FILE_NAME} hash 校验失败，将重新下载`)
+    logInfo(ctx, config, `⚠️ ${LXGW_WENKAI_FILE_NAME} hash 校验失败，将重新下载`)
   }
 
   await mkdir(path.dirname(fontPath), { recursive: true })
@@ -101,11 +101,11 @@ export async function ensureRuntimeFonts(ctx: Context, config: Config) {
       return
     } catch (error) {
       lastError = error
-      logInfo(ctx, config, `[sky-renwu-weibo] ${item.source} 字体下载失败：${error instanceof Error ? error.message : String(error)}`)
+      logInfo(ctx, config, `⚠️ ${item.source} 字体下载失败：${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
-  logInfo(ctx, config, `[sky-renwu-weibo] 字体自动下载失败，将使用系统默认字体：${lastError instanceof Error ? lastError.message : String(lastError)}`)
+  logInfo(ctx, config, `⚠️ 字体自动下载失败，将使用系统默认字体：${lastError instanceof Error ? lastError.message : String(lastError)}`)
 }
 
 function calculateFontHashes(buffer: Buffer) {

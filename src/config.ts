@@ -22,6 +22,16 @@ export const MSG_FORM = {
 
 export type MsgFormType = typeof MSG_FORM[keyof typeof MSG_FORM]
 
+/** 🔐 微博访问策略 */
+export const WEIBO_ACCESS_MODE = {
+  COOKIE_ONLY: 'cookie-only',
+  GUEST_ONLY: 'guest-only',
+  COOKIE_THEN_GUEST: 'cookie-then-guest',
+  GUEST_THEN_COOKIE: 'guest-then-cookie',
+} as const
+
+export type WeiboAccessModeType = typeof WEIBO_ACCESS_MODE[keyof typeof WEIBO_ACCESS_MODE]
+
 /** 🤖 QQ Markdown 文案整理模式 */
 export const QQ_MARKDOWN_MODE = {
   STRUCTURED: 'structured',
@@ -59,17 +69,18 @@ export interface MsgFormEntry {
 
 export interface Config {
   // ==================
-  // 🔑 微博来源配置字段
+  // 📌 指令配置字段
   // ==================
   commandName: string
-  uid: string
-  authorName: string
-  weiboCookie: string
-  matchPattern: string
 
   // ==================
-  // 🌐 请求与缓存配置字段
+  // 🔑 微博请求配置字段
   // ==================
+  uid: string
+  authorName: string
+  weiboAccessMode: WeiboAccessModeType
+  weiboCookie: string
+  matchPattern: string
   cacheMinutes: number
   requestTimeout: number
   userAgent: string
@@ -115,33 +126,42 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.intersect([
   // ==================
-  // 🔑 微博来源配置分组
+  // 📌 指令配置分组
   // ==================
   Schema.object({
     commandName: Schema.string()
       .default('今日光遇国服任务')
       .description('📌 触发命令名称。默认发送 <code>今日光遇国服任务</code> 获取当天国服每日任务。'),
+  }).description('📌 指令配置'),
+
+  // ==================
+  // 🔑 微博请求配置分组
+  // ==================
+  Schema.object({
     uid: Schema.string()
       .default('7360748659')
       .description('👤 微博用户 UID。默认是 <code>@今天游离翻车了吗</code> 的 UID。'),
     authorName: Schema.string()
       .default('今天游离翻车了吗')
       .description('🏷️ 来源作者显示名。会展示在数据来源署名里。'),
+    weiboAccessMode: Schema.union([
+      Schema.const(WEIBO_ACCESS_MODE.COOKIE_ONLY).description('【🍪A】只使用 PC 微博网页登录态：Python/CDP 导出的 weibo.com Cookie'),
+      Schema.const(WEIBO_ACCESS_MODE.GUEST_ONLY).description('【👤B】只使用无登录用户态：不使用 weiboCookie，优先走移动端公开接口和游客态'),
+      Schema.const(WEIBO_ACCESS_MODE.COOKIE_THEN_GUEST).description('【🍪👤C】先 PC 微博网页登录态，失败后转无登录用户态'),
+      Schema.const(WEIBO_ACCESS_MODE.GUEST_THEN_COOKIE).description('【👤🍪D】先无登录用户态，失败后转 PC 微博网页登录态'),
+    ])
+      .role('radio')
+      .default(WEIBO_ACCESS_MODE.GUEST_THEN_COOKIE)
+      .description('🔐 微博访问策略。默认 D：先尝试无登录用户态，必要时再使用 weiboCookie。'),
     weiboCookie: Schema.string()
       .role('secret')
       .role('textarea', { rows: [2, 5] })
       .default('')
-      .description('🔐 微博 Cookie。必填，建议使用 <code>scripts/20260630/weibo_cookie.py</code> 登录导出。'),
+      .description('🔐 微博 Cookie。访问策略包含 Cookie 登录态时使用，建议通过 <code>scripts/20260630/weibo_cookie.py</code> 登录导出。'),
     matchPattern: Schema.string()
       .role('textarea', { rows: [2, 5] })
-      .default('^#[^#]*光遇[^#]*超话]#\\s*\\d{1,2}\\.\\d{1,2}\\s*')
-      .description('🔎 筛选每日任务微博的正则表达式。微博文案格式变化时可以在这里调整。'),
-  }).description('🔑 微博来源配置'),
-
-  // ==================
-  // 🌐 请求与缓存配置分组
-  // ==================
-  Schema.object({
+      .default('(?:^#[^#]*光遇[^#]*超话]#\\s*\\d{1,2}\\.\\d{1,2}\\s*|^\\s*(?:sky)?光遇\\s*\\d{1,2}\\.\\d{1,2}\\s*(?:每日)?任务)')
+      .description('🔎 筛选每日任务微博的正则表达式。微博文案格式变化时可以在这里调整；插件也会自动识别 07.05每日任务 这类日期文案作为兜底。'),
     cacheMinutes: Schema.number()
       .min(0)
       .step(1)
@@ -156,7 +176,7 @@ export const Config: Schema<Config> = Schema.intersect([
       .role('textarea', { rows: [3, 5] })
       .default('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0')
       .description('🕵️ 请求微博使用的 User-Agent。通常保持默认即可。'),
-  }).description('🌐 请求与缓存配置'),
+  }).description('🔑 微博请求配置'),
 
   // ==================
   // 💬 消息发送形式配置分组
@@ -324,6 +344,6 @@ export const Config: Schema<Config> = Schema.intersect([
       .description('💬 是否在会话中输出详细调试信息。关闭时 QQ Markdown 按钮跳过提醒默认不会发送到会话；开启后才会同步发送到会话。'),
     verboseConsoleLog: Schema.boolean()
       .default(false)
-      .description('🧾 是否在控制台输出详细调试信息。关闭时非 QQ 平台的 QQ Markdown 按钮跳过提醒不会输出到控制台；开启后会输出缓存、微博抓取、渲染、发送、assets/server 图片 URL 生成和字体检查细节。'),
+      .description('🧾 是否在控制台输出详细调试信息。关闭时非 QQ 平台的 QQ Markdown 按钮跳过提醒不会输出到控制台；开启后会输出缓存、微博访问策略、游客态 Cookie 初始化、微博接口状态码、列表数量、匹配样本、渲染、发送、assets/server 图片 URL 生成和字体检查细节。'),
   }).description('🐛 调试配置'),
 ])

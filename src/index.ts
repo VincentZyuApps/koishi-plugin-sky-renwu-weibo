@@ -7,7 +7,7 @@ import { applyQQServices } from './qq/server'
 import { usage } from './usage'
 import { ensureRuntimeFonts } from './utils/fonts'
 import { logInfo } from './utils/logger'
-import { createWeiboClient, fetchChineseServerDaily, type DailyResult } from './weibo'
+import { fetchChineseServerDaily, type DailyResult } from './weibo'
 
 export const name = 'sky-renwu-weibo'
 export const inject = {
@@ -20,7 +20,7 @@ export type { ConfigType }
 export function apply(ctx: Context, config: ConfigType) {
   let cache: DailyResult | undefined
 
-  logInfo(ctx, config, 'sky-renwu-weibo 插件已启动', `插件启动: command=${config.commandName}, uid=${config.uid}, author=${config.authorName}`)
+  logInfo(ctx, config, '✅ 插件已启动', `插件启动: command=${config.commandName}, uid=${config.uid}, author=${config.authorName}`)
   ensureRuntimeFonts(ctx, config).catch((error) => {
     logInfo(ctx, config, `字体预检查失败，将使用系统默认字体：${error instanceof Error ? error.message : String(error)}`)
   })
@@ -67,8 +67,7 @@ export function apply(ctx: Context, config: ConfigType) {
     }
 
     logInfo(ctx, config, '', '缓存未命中，开始请求微博接口')
-    const client = createWeiboClient(config)
-    const result = await fetchChineseServerDaily(ctx, client, config)
+    const result = await fetchChineseServerDaily(ctx, config)
     cache = result
     logInfo(ctx, config, '', `微博接口请求完成并写入缓存: fetchedAt=${result.fetchedAt}`)
     return result

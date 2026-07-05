@@ -2,7 +2,9 @@
 
 ## 🔐 weibo_cookie.py
 
-🌐 用于打开有头浏览器，手动登录微博后导出 `weibo.com` Cookie。
+🌐 用于打开有头浏览器，手动登录微博后导出 PC 微博网页的 `weibo.com` Cookie。
+
+插件推荐保持默认访问策略 D：先使用移动端无登录用户态，失败或未匹配到今日任务时再 fallback 到 PC 微博网页登录态。这个脚本不是必跑步骤，只在需要 Cookie fallback 时用于生成 `weiboCookie` 配置值。
 
 > [!IMPORTANT]
 >
@@ -20,6 +22,8 @@
 - 最后只保留 `weibo.com` 及其子域名的 Cookie，写入本地 `weibo_cookie.private.txt`。
 
 整个实现只依赖 Python 标准库；包括 WebSocket 客户端也是脚本里手写的最小实现，没有额外依赖。
+
+Koishi 插件运行时不会自动读取 `weibo_cookie.private.txt`。需要把文件内容复制到插件配置项 `weiboCookie`，访问策略 A/C/D 才会使用它；策略 B 不使用它。
 
 ![微博 Cookie 脚本示例](../docs/images/example.get-weibo-cookie-via-python.png)
 
@@ -53,8 +57,8 @@ python ./20260630/weibo_cookie.py --browser "/usr/bin/google-chrome"
 ```text
 scripts/
 └── 20260630/
-    ├── weibo_cookie.py             # 🌐 打开有头浏览器，登录微博并导出 Cookie
+    ├── weibo_cookie.py             # 🌐 打开有头浏览器，登录 PC 微博网页并导出 Cookie
     ├── latest.debug.log            # 🧾 调试日志，包含本地运行信息
-    ├── weibo_cookie.private.txt    # 🔐 需要填入配置项 weiboCookie 的值
+    ├── weibo_cookie.private.txt    # 🔐 访问策略 A/C/D 可使用的 weiboCookie
     └── .browser-profile/           # 🗂️ 隔离浏览器用户数据目录，可能包含登录态
 ```
