@@ -181,7 +181,7 @@ scripts/
 |---|---|---|---|
 | `enableQuote` | `boolean` | `true` | bot 发送普通消息时是否引用触发指令；`forward` 合并转发模式不会附带引用 |
 | `enableWaitingHint` | `boolean` | `true` | 是否显示“获取并生成中.... 请耐心等待”等待提示；所有发送形式完成后会尝试撤回 |
-| `msgFormArr` | `{ mode, enabled }[]` | 见默认表格 | 每日任务发送形式表格，可调整顺序，可启用 / 禁用；默认启用 `forward`、`puppeteer-image` 和 `qq-markdown` |
+| `msgFormArr` | `{ mode, enabled }[]` | 见说明 | 每日任务发送形式表格，可调整顺序，可启用 / 禁用；默认启用 `forward`、`puppeteer-image` 和 `qq-markdown` |
 | `strictOrderMode` | `boolean` | `true` | 是否严格按照表格顺序串行发送；关闭后会并行发送，顺序不保证 |
 
 ### 🤖 QQ 官方 Bot Markdown 适配
@@ -193,7 +193,7 @@ scripts/
 | `qqMarkdownPuppeteerImageMaxFiles` | `number` | `5` | server 模式缓存图片数量上限；仅在 `append-puppeteer-image` 且存储模式为 `server` 时生效；仅保留最新 N 张，填写 `<= 0` 表示不设置上限 |
 | `qqMarkdownMode` | `"structured" \| "blockquote"` | `"structured"` | QQ Markdown 文案整理模式；`structured` 会尝试按正则整理标题、任务条目和来源，`blockquote` 会把全文逐行放进引用块 |
 | `qqMarkdownButtonMode` | `string[]` | `["append-qq-markdown", "append-puppeteer-image"]` | QQ Markdown 按钮发送行为，可多选；`standalone` 单独发送固定的 `## 光遇任务操作按钮` 消息并附带按钮，`append-qq-markdown` 在启用 `qq-markdown` 发送形式时把按钮挂到正文 Markdown 后面，`append-puppeteer-image` 在启用 `puppeteer-image` 发送形式时按上方模式把 Puppeteer 卡片图转成公网 URL 后发送 Markdown 图片并附带按钮 |
-| `qqMarkdownKeyboardJson` | `string` | 默认按钮 JSON | QQ Markdown 按钮 JSON 配置；默认一行两个按钮：`再次获取` 执行 `${commandName}`，`玩玩别的` 执行 `help` |
+| `qqMarkdownKeyboardJson` | `string` | [默认按钮 JSON](./src/qq/keyboard.ts) | QQ Markdown 按钮 JSON 配置；默认两行三个按钮：第一行 `再次获取` 执行 `${commandName}`、`获取帮助` 执行 `${commandName} --help`，第二行 `玩玩别的` 执行 `help` |
 
 `append-qq-markdown` 必须同时启用 `qq-markdown`。`append-puppeteer-image` 必须同时启用 `puppeteer-image`，并根据配置模式依赖 Koishi `assets` 或 `server` 服务提供公网 `http(s)` 图片地址。如果条件不满足，会话里默认静默跳过；只有开启 `verboseSessionLog` 时才会额外发送会话提醒。控制台在 QQ 平台默认仍会输出警告，非 QQ 平台则需要开启 `verboseConsoleLog` 才会输出，不会自动补发。`standalone` 不使用 `assets` / `server` 图片 URL 生成功能。
 
