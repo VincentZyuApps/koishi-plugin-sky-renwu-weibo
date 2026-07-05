@@ -39,12 +39,15 @@ export const usage = `
 <p>🤖 光遇 Bot / QQ 官方 Bot / Koishi 相关交流，也欢迎加入光遇 Bot QQ 群：<b style="color: #EA5252;">475328908</b></p>
 <p>💡 在群里直接艾特我，回复的更快哦~ ✨</p>
 
-<h2 style="color: #ff8a00; font-weight: 900; font-size: 24px; margin: 20px 0;">🧩 可选依赖：按需开启 <b>puppeteer</b>、<b>assets</b> 和 <b>server</b> 服务</h2>
+<details>
+<summary><h2 style="color: #ff8a00; font-weight: 900; font-size: 24px; margin: 20px 0;">🧩 可选依赖与 QQ 图片体积提醒（点击展开）</h2></summary>
 <p><b>🖼️ puppeteer 是可选服务：</b>只有启用 <code>puppeteer-image</code> 卡片图发送形式时才需要，用于把每日任务渲染成图片。</p>
 <p><b>🌐 assets / server 是可选服务：</b>只有启用 QQ Markdown 按钮行为 <code>append-puppeteer-image</code> 时才会按配置模式使用，用于把 Puppeteer 卡片图转换成 QQ 官方 Bot 可访问的公网图片 URL。</p>
+<p><b>⚠️ QQ 平台图片体积提醒：</b>在 QQ 官方 Bot 平台使用 <code>puppeteer-image</code> 或 <code>append-puppeteer-image</code> 时，建议把 <code>imageType</code> 改为 <code>jpeg</code> 或 <code>webp</code>，并适当调低 <code>screenshotQuality</code>；默认 PNG 长图可能过大，导致 QQ 平台不接受或不渲染图片。</p>
 <p><b>🧷 standalone 与 append-qq-markdown：</b>这两种按钮行为不会使用上面的 assets / server 配置，也不依赖它们。</p>
 <p><b>⚠️ assets 模式：</b>只能新增图片，不能删除，文件名由 assets 服务决定，通常无法自定义。</p>
 <p><b>⚠️ server 模式：</b>会把临时图片写到 <code>ctx.baseDir/cache/sky-renwu-weibo</code>，支持时间命名，并按数量上限仅保留最新图片；<code>qqMarkdownPuppeteerImageMaxFiles &lt;= 0</code> 表示不设置上限。请确保本插件配置的公网 URL 或 Koishi <code>server.selfUrl</code> 可被 QQ 官方 Bot 访问。</p>
+</details>
 
 <p>通过微博 Ajax 获取光遇国服每日任务，默认数据源为 <a href="https://weibo.com/u/7360748659" target="_blank"><code>@今天游离翻车了吗</code></a>。</p>
 
@@ -65,19 +68,27 @@ export const usage = `
 </pre>
 
 <p>命令名称可在配置项 <code>commandName</code> 中修改。</p>
-<p>可用 <code>--weibo &lt;mode&gt;</code> 临时覆盖微博访问策略，优先级高于配置项 <code>weiboAccessMode</code>。<code>mode</code> 不区分大小写，可选：<code>cookie-only</code> / <code>guest-only</code> / <code>cookie-then-guest</code> / <code>guest-then-cookie</code>。</p>
-<pre>
-<code>今日光遇国服任务 --weibo guest-only
-今日光遇国服任务 --weibo COOKIE-ONLY</code>
-</pre>
 
-<h3>🔐 微博访问策略与 Cookie</h3>
+<details>
+<summary><h3>🔐 微博访问策略与 Cookie（点击展开）</h3></summary>
 
 <p>推荐保持默认访问策略 【D】：先尝试移动端无登录用户态，失败或未匹配到今日任务时再 fallback 到 PC 微博网页登录态。</p>
 <p>默认情况下可以先不填写 <code>weiboCookie</code>。如果移动端公开接口受限、无登录用户态没有匹配到今日任务，或想提高兜底稳定性，再使用 PC 微博网页登录态作为 fallback。</p>
 
-<details>
-<summary><h3>🔐 Cookie 获取和安全说明（点击展开）</h3></summary>
+<h4>📌 临时覆盖微博访问策略</h4>
+<p>可用 <code>--weibo &lt;mode&gt;</code> 临时覆盖微博访问策略，优先级高于配置项 <code>weiboAccessMode</code>。
+<br>
+<code>mode</code> 不区分大小写，可选：<code>cookie-only</code> / <code>guest-only</code> / <code>cookie-then-guest</code> / <code>guest-then-cookie</code>。</p>
+<pre>
+<code>
+今日光遇国服任务 --weibo guest-only
+</code>
+<code>
+今日光遇国服任务 --weibo COOKIE-ONLY
+</code>
+</pre>
+
+<h4>🔐 Cookie 获取和安全说明</h4>
 
 <p>需要 Cookie fallback 时，可以运行仓库内的辅助脚本打开浏览器手动登录：</p>
 <p>Cookie 辅助脚本只使用 Python 标准库，也不需要 <code>pip install</code>。</p>

@@ -148,6 +148,8 @@ scripts/
 
 `forward` 模式仅支持 `onebot`、`red` 和 `discord` 平台；其他平台即使勾选也会直接跳过。`puppeteer-image` 模式需要启用 Koishi 的 `puppeteer` 服务；未启用时插件会跳过该发送形式。`append-puppeteer-image` 按钮行为还需要根据配置模式启用 Koishi `assets` 或 `server` 服务，用于生成公网 `http(s)` 图片地址。`standalone` 和 `append-qq-markdown` 不使用这套图片 URL 生成逻辑。
 
+QQ 官方 Bot 平台使用 `puppeteer-image` 或 `append-puppeteer-image` 时，建议把 Puppeteer 卡片图输出格式改为 `jpeg` 或 `webp`，并适当调低 `screenshotQuality`。如果继续使用默认 PNG，微博图片较多时生成的长图可能过大，导致 QQ 平台不接受或不渲染图片。
+
 ### 🖼️ 效果预览
 
 ![Puppeteer 卡片图预览](./docs/images/preview/preview.puppeteer-image.png)
@@ -203,8 +205,8 @@ scripts/
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `imageType` | `"png" \| "jpeg" \| "webp"` | `"png"` | Puppeteer 卡片图输出格式；PNG 不支持质量参数 |
-| `screenshotQuality` | `number` | `88` | Puppeteer 卡片图截图质量，仅 JPEG / WEBP 生效 |
+| `imageType` | `"png" \| "jpeg" \| "webp"` | `"png"` | Puppeteer 卡片图输出格式；PNG 不支持质量参数；QQ 平台建议改为 `jpeg` 或 `webp`，避免长图文件过大 |
+| `screenshotQuality` | `number` | `88` | Puppeteer 卡片图截图质量，仅 JPEG / WEBP 生效；QQ 平台建议适当调低，图片过大可能不被接受 |
 | `imageWidth` | `number` | `980` | Puppeteer 卡片图宽度，单位 px |
 | `useCustomFont` | `boolean` | `true` | 是否使用自定义字体路径；关闭后使用系统默认字体，并跳过默认字体下载 |
 | `autoDownloadFont` | `boolean` | `true` | 是否自动下载并校验默认字体 |
