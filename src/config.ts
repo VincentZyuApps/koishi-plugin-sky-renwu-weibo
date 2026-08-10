@@ -285,7 +285,7 @@ export const Config: Schema<Config> = Schema.intersect([
       .role('checkbox')
       .default([QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN, QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE])
       .description([
-        'QQ Markdown 按钮发送行为，可多选',
+        'QQ Markdown 按钮发送行为，可多选。只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为。',
         `【🧷 ${QQ_MARKDOWN_BUTTON_MODE.STANDALONE}】单独发送 JSON 按钮消息`,
         `【📎 ${QQ_MARKDOWN_BUTTON_MODE.APPEND_QQ_MARKDOWN}】挂在 QQ Markdown 后面`,
         `【🖼️ ${QQ_MARKDOWN_BUTTON_MODE.APPEND_PUPPETEER_IMAGE}】挂在 Puppeteer 卡片图后面`,
@@ -295,7 +295,7 @@ export const Config: Schema<Config> = Schema.intersect([
     qqMarkdownKeyboardJson: Schema.string()
       .role('textarea', { rows: [5, 10] })
       .default(stringifyCompact(DEFAULT_QQ_MARKDOWN_KEYBOARD))
-      .description('📋 QQ Markdown 按钮 JSON 配置。支持变量 <code>${commandName}</code>；JSON 解析失败时会自动退回默认按钮。'),
+      .description('📋 QQ Markdown 按钮 JSON 配置。只在 qqMarkdownButtonMode 生效时使用；qqMarkdownButtonMode 只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为。支持变量 <code>${commandName}</code>；JSON 解析失败时会自动退回默认按钮。'),
   }).description('🤖 QQ 官方 Bot Markdown 适配'),
 
   // ==================

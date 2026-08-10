@@ -1,6 +1,7 @@
 import { Context, h, Session } from 'koishi'
 import { MSG_FORM, type Config, type MsgFormType } from './config'
 import {
+  filterQQButtonModesForSession,
   hasAppendQQPuppeteerImageButtonMode,
   normalizeQQButtonModes,
   type QQMarkdownButtonMode,
@@ -46,9 +47,11 @@ export async function sendDailyResult(
     return sendSessionMessage(session, config, '已获取到光遇每日任务，但未选择任何发送形式。')
   }
 
-  const buttonModes = normalizeQQButtonModes(config)
+  const configuredButtonModes = normalizeQQButtonModes(config)
+  const buttonModes = filterQQButtonModesForSession(configuredButtonModes, session)
   logInfo(ctx, config, '', `消息发送形式: ${msgForms.join(', ') || '(empty)'}`)
-  logInfo(ctx, config, '', `QQ Markdown 按钮行为: ${buttonModes.join(', ') || '(empty)'}`)
+  logInfo(ctx, config, '', `QQ Markdown 按钮行为配置: ${configuredButtonModes.join(', ') || '(empty)'}`)
+  logInfo(ctx, config, '', `本次生效的 QQ Markdown 按钮行为: ${buttonModes.join(', ') || '(empty)'}`)
   logInfo(ctx, config, '', `发送执行模式: ${config.strictOrderMode !== false ? 'serial' : 'parallel'}`)
   await notifyInvalidQQButtonModes(ctx, session, config, msgForms, buttonModes)
   const tasks = msgForms.map((mode) => () => sendDailyMode(ctx, session, config, result, msgForms, buttonModes, mode))

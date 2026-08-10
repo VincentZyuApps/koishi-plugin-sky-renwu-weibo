@@ -40,6 +40,7 @@
 > - 启用 `puppeteer-image` 卡片图发送形式时，需要启用 Koishi 的 `puppeteer` 服务。
 > - 启用 `append-puppeteer-image` QQ Markdown 按钮行为时，会根据配置模式使用 Koishi 的 `assets` 或 `server` 服务，把 Puppeteer 卡片图转换成 QQ 官方 Bot 可访问的公网图片 URL。
 > - `standalone` 和 `append-qq-markdown` 不使用 `assets` / `server` 图片 URL 生成功能，也不依赖它们。
+> - `qqMarkdownButtonMode` 只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为。
 
 ## 📌 指令
 
@@ -142,7 +143,7 @@ scripts/
 - 📄 `text`：纯文字，只发送微博长文本、数据来源和原文链接
 - 📦 `forward`：图文合并转发，把文字和图片打包进合并转发；仅支持 `onebot`、`red` 和 `discord` 平台
 - 🖼️ `puppeteer-image`：Puppeteer 卡片图，把文字和微博图片排版成一张圆角卡片图
-- 🤖 `qq-markdown`：QQ 官方 Bot Markdown 正文消息，只有 QQ 官方 Bot 平台能用；操作按钮行为由 `qqMarkdownButtonMode` 控制
+- 🤖 `qq-markdown`：QQ 官方 Bot Markdown 正文消息，只有 QQ 官方 Bot 平台能用；操作按钮行为由 `qqMarkdownButtonMode` 控制，但 `qqMarkdownButtonMode` 只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为
 
 默认启用 `forward`、`puppeteer-image` 和 `qq-markdown`。
 
@@ -194,10 +195,23 @@ QQ 官方 Bot 平台使用 `puppeteer-image` 或 `append-puppeteer-image` 时，
 | `qqMarkdownPuppeteerImageSelfUrl` | `string` | `""` | server 模式公网 URL 覆盖值；仅在 `append-puppeteer-image` 且存储模式为 `server` 时生效；留空则回退 `ctx.server.config.selfUrl` |
 | `qqMarkdownPuppeteerImageMaxFiles` | `number` | `5` | server 模式缓存图片数量上限；仅在 `append-puppeteer-image` 且存储模式为 `server` 时生效；仅保留最新 N 张，填写 `<= 0` 表示不设置上限 |
 | `qqMarkdownMode` | `"structured" \| "blockquote"` | `"structured"` | QQ Markdown 文案整理模式；`structured` 会尝试按正则整理标题、任务条目和来源，`blockquote` 会把全文逐行放进引用块 |
-| `qqMarkdownButtonMode` | `string[]` | `["append-qq-markdown", "append-puppeteer-image"]` | QQ Markdown 按钮发送行为，可多选；`standalone` 单独发送固定的 `## 光遇任务操作按钮` 消息并附带按钮，`append-qq-markdown` 在启用 `qq-markdown` 发送形式时把按钮挂到正文 Markdown 后面，`append-puppeteer-image` 在启用 `puppeteer-image` 发送形式时按上方模式把 Puppeteer 卡片图转成公网 URL 后发送 Markdown 图片并附带按钮 |
-| `qqMarkdownKeyboardJson` | `string` | [默认按钮 JSON](./src/qq/keyboard.ts) | QQ Markdown 按钮 JSON 配置；默认两行三个按钮：第一行 `再次获取` 执行 `${commandName}`、`获取帮助` 执行 `${commandName} --help`，第二行 `玩玩别的` 执行 `help` |
+| `qqMarkdownButtonMode` | `string[]` | `["append-qq-markdown", "append-puppeteer-image"]` | QQ Markdown 按钮发送行为，可多选；只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为；`standalone` 单独发送固定的 `## 光遇任务操作按钮` 消息并附带按钮，`append-qq-markdown` 在启用 `qq-markdown` 发送形式时把按钮挂到正文 Markdown 后面，`append-puppeteer-image` 在启用 `puppeteer-image` 发送形式时按上方模式把 Puppeteer 卡片图转成公网 URL 后发送 Markdown 图片并附带按钮 |
+| `qqMarkdownKeyboardJson` | `string` | [默认按钮 JSON](./src/qq/keyboard.ts) | QQ Markdown 按钮 JSON 配置；只在 `qqMarkdownButtonMode` 生效时使用；`qqMarkdownButtonMode` 只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为；默认两行三个按钮：第一行 `🔄 再次获取` 执行 `${commandName}`、`❓ 获取帮助` 执行 `${commandName} --help`，第二行 `🎲 玩玩别的` 执行 `help` |
 
-`append-qq-markdown` 必须同时启用 `qq-markdown`。`append-puppeteer-image` 必须同时启用 `puppeteer-image`，并根据配置模式依赖 Koishi `assets` 或 `server` 服务提供公网 `http(s)` 图片地址。如果条件不满足，会话里默认静默跳过；只有开启 `verboseSessionLog` 时才会额外发送会话提醒。控制台在 QQ 平台默认仍会输出警告，非 QQ 平台则需要开启 `verboseConsoleLog` 才会输出，不会自动补发。`standalone` 不使用 `assets` / `server` 图片 URL 生成功能。
+> [!IMPORTANT]
+>
+> `qqMarkdownButtonMode` 只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为。
+>
+> QQ 官方 Bot 群聊和私信可以通过会话字段区分：
+>
+> ```text
+> QQ 群聊：platform = qq，guildId 非空，channelId 不以 private: 开头
+> QQ 私信：platform = qq，guildId 为空，channelId 通常形如 private:用户ID
+> ```
+>
+> 因此 QQ 私信和其他平台会忽略所有 JSON 按钮行为，继续按各自原有发送方式处理。
+
+在 QQ 官方 Bot 群聊中，`append-qq-markdown` 必须同时启用 `qq-markdown`。`append-puppeteer-image` 必须同时启用 `puppeteer-image`，并根据配置模式依赖 Koishi `assets` 或 `server` 服务提供公网 `http(s)` 图片地址。如果条件不满足，会话里默认静默跳过；只有开启 `verboseSessionLog` 时才会额外发送会话提醒。QQ 私信和其他平台不会检查这些按钮行为条件，也不会因为 `qqMarkdownButtonMode` 改变原有发送行为。`standalone` 不使用 `assets` / `server` 图片 URL 生成功能。
 
 `server` 模式会把临时图片写到 `ctx.baseDir/cache/sky-renwu-weibo`，文件名格式为 `yyyyMMdd-HHmmss.<ext>`，并按配置的数量上限只保留最新图片；`qqMarkdownPuppeteerImageMaxFiles <= 0` 表示不设置上限。超过上限时，较早生成的旧图片会被清理，旧 QQ Markdown 消息里的图片后续可能失效，这是预期行为。
 

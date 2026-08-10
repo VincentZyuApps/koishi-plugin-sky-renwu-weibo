@@ -43,6 +43,7 @@ export const usage = `
 <summary><h2 style="color: #ff8a00; font-weight: 900; font-size: 24px; margin: 20px 0;">🧩 可选依赖与 QQ 图片体积提醒（点击展开）</h2></summary>
 <p><b>🖼️ puppeteer 是可选服务：</b>只有启用 <code>puppeteer-image</code> 卡片图发送形式时才需要，用于把每日任务渲染成图片。</p>
 <p><b>🌐 assets / server 是可选服务：</b>只有启用 QQ Markdown 按钮行为 <code>append-puppeteer-image</code> 时才会按配置模式使用，用于把 Puppeteer 卡片图转换成 QQ 官方 Bot 可访问的公网图片 URL。</p>
+<p><b>⚠️ QQ JSON 按钮限制：</b><code>qqMarkdownButtonMode</code> 只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为。</p>
 <p><b>⚠️ QQ 平台图片体积提醒：</b>在 QQ 官方 Bot 平台使用 <code>puppeteer-image</code> 或 <code>append-puppeteer-image</code> 时，建议把 <code>imageType</code> 改为 <code>jpeg</code> 或 <code>webp</code>，并适当调低 <code>screenshotQuality</code>；默认 PNG 长图可能过大，导致 QQ 平台不接受或不渲染图片。</p>
 <p><b>🧷 standalone 与 append-qq-markdown：</b>这两种按钮行为不会使用上面的 assets / server 配置，也不依赖它们。</p>
 <p><b>⚠️ assets 模式：</b>只能新增图片，不能删除，文件名由 assets 服务决定，通常无法自定义。</p>

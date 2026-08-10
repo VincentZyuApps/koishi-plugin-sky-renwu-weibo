@@ -14,11 +14,11 @@ export const DEFAULT_QQ_MARKDOWN_KEYBOARD: KeyboardRows = {
     {
       buttons: [
         {
-          render_data: { label: '再次获取', style: 1 },
+          render_data: { label: '🔄 再次获取', style: 1 },
           action: { type: 2, permission: { type: 2 }, data: '${commandName}', enter: true },
         },
         {
-          render_data: { label: '获取帮助', style: 0 },
+          render_data: { label: '❓ 获取帮助', style: 0 },
           action: { type: 2, permission: { type: 2 }, data: '${commandName} --help', enter: true },
         },
       ],
@@ -26,7 +26,7 @@ export const DEFAULT_QQ_MARKDOWN_KEYBOARD: KeyboardRows = {
     {
       buttons: [
         {
-          render_data: { label: '玩玩别的', style: 0 },
+          render_data: { label: '🎲 玩玩别的', style: 0 },
           action: { type: 2, permission: { type: 2 }, data: 'help', enter: true },
         },
       ],
