@@ -109,6 +109,7 @@ export interface Config {
   activePushTimezoneGmtOffset: number
   activePushUseCache: boolean
   activePushTargets: ActivePushTarget[]
+  enableActivePushTestCommand: boolean
   enableConsoleWebuiTestArea: boolean
 
   // ==================
@@ -326,6 +327,9 @@ export const Config: Schema<Config> = Schema.intersect([
         '<i><code>📡 Channel ID</code>：qq 官方群填写群 openid；onebot 普通群填写真实 QQ 群号。</i>',
         '<i><code>✅ 是否启用</code>：关闭后跳过此目标。</i>',
       ].join('<br/>')),
+    enableActivePushTestCommand: Schema.boolean()
+      .default(false)
+      .description('🧪 是否注册 <code>${commandName}.主动推送测试</code> 管理员测试指令。默认关闭；仅 authority 3 可执行，使用已保存的主动推送目标，不依赖 Cron 总开关。'),
     enableConsoleWebuiTestArea: Schema.boolean()
       .default(true)
       .description('🧪 是否在 Koishi Console 的插件详情顶部注册主动推送测试区域。默认开启；仅管理员可二次确认并立即测试当前生效配置。'),

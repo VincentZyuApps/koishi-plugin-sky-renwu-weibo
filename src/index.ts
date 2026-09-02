@@ -2,7 +2,7 @@ import { Context, h, Session } from 'koishi'
 import type {} from '@koishijs/assets'
 import type {} from '@koishijs/plugin-console'
 import type {} from '@koishijs/plugin-server'
-import { ActivePushService } from './active'
+import { ActivePushService, type ActivePushResult } from './active'
 import { applyActivePushConsole } from './console'
 import { Config, WEIBO_ACCESS_MODE, type Config as ConfigType, type WeiboAccessModeType } from './config'
 import { sendDailyResult } from './message'
@@ -103,6 +103,19 @@ export function apply(ctx: Context, config: ConfigType) {
         }
       }
     })
+
+  if (config.enableActivePushTestCommand) {
+    ctx.command(`${config.commandName}.主动推送测试`, '🧪 向全部启用目标测试主动推送', { authority: 3 })
+      .action(async ({ session }) => {
+        if (!session) return
+
+        const result = await activePushService.trigger('command')
+        await session.send(`${getQuotePrefix(session, config)}${formatActivePushTestSummary(result)}`)
+        if (config.verboseSessionLog && result.targets.length) {
+          await session.send(`${getQuotePrefix(session, config)}${formatActivePushTestDetails(result)}`)
+        }
+      })
+  }
 }
 
 function getQuotePrefix(session: Session, config: ConfigType) {
@@ -118,4 +131,16 @@ function parseWeiboAccessModeOption(value: unknown): WeiboAccessModeType | undef
 
   const normalized = String(value).trim().toLowerCase().replace(/_/g, '-')
   return WEIBO_ACCESS_MODE_VALUES.find((mode) => mode === normalized)
+}
+
+function formatActivePushTestSummary(result: ActivePushResult) {
+  const failedCount = result.targets.filter((item) => !item.ok).length
+  return `${result.ok ? '✅' : '⚠️'} 主动推送测试${result.ok ? '完成' : '未完成'}：${result.message}${failedCount ? ` 失败 ${failedCount} 个 Bot 目标。` : ''}`
+}
+
+function formatActivePushTestDetails(result: ActivePushResult) {
+  return [
+    '🧾 主动推送测试逐目标详情：',
+    ...result.targets.map((item) => `${item.ok ? '✅' : '❌'} ${item.note}\n${item.message}`),
+  ].join('\n')
 }

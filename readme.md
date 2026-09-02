@@ -134,7 +134,7 @@ scripts/
 
 ![微博 Cookie 脚本示例](./docs/images/example.get-weibo-cookie-via-python.png)
 
-## 💬 输出方式
+## 💬 被动指令输出方式
 
 插件配置项 `msgFormArr` 是表格形式：每一行选择一种发送形式，并通过 `enabled` 控制是否启用。可以调整行顺序，插件会按表格顺序发送；`strictOrderMode=false` 时会并行发送，发送顺序不保证。
 
@@ -176,6 +176,12 @@ QQ 官方 Bot 平台使用 `puppeteer-image` 或 `append-puppeteer-image` 时，
 `enableConsoleWebuiTestArea` 默认开启，Koishi Console 的插件详情顶部会出现“主动消息推送测试”区域；不需要时可在插件配置中关闭。该区域仅允许 authority 3 的管理员访问，点击“立即推送”会先二次确认，再使用当前生效的目标、发送形式和缓存配置发送一次。
 
 手动测试不受 `enableActivePush` 限制，便于在开启定时任务前验证 QQ 官方 Bot、频道 ID 与图片/Markdown 配置。Cron 抓取失败始终写入控制台；当 `verboseSessionLog=true` 时，失败说明还会发送到全部启用目标。
+
+### 💬 管理员测试指令
+
+`enableActivePushTestCommand` 默认关闭。开启后，authority 3 的管理员可执行 `${commandName}.主动推送测试`，向已保存的 `activePushTargets` 中全部启用目标发送一次每日任务；它不依赖 `enableActivePush`。
+
+无论 `verboseSessionLog` 与 `verboseConsoleLog` 是否开启，命令调用者和 Console 都会收到简要结果。开启 `verboseSessionLog` 时，调用者会额外收到逐目标详情；开启 `verboseConsoleLog` 时，Console 会额外记录逐目标、缓存和发送形式详情。
 
 ### 🖼️ 效果预览
 
@@ -222,6 +228,7 @@ QQ 官方 Bot 平台使用 `puppeteer-image` 或 `append-puppeteer-image` 时，
 | `activePushTimezoneGmtOffset` | `number` | `8` | Cron 使用的整数 GMT 偏移，`8` 表示 GMT+8；范围 -12 至 14，不处理夏令时 |
 | `activePushUseCache` | `boolean` | `false` | 是否按 `cacheMinutes` 使用微博缓存；关闭时每次主动推送强制刷新 |
 | `activePushTargets` | `ActivePushTarget[]` | `dev` OneBot 目标 | 主动推送目标表；包含 `note`、`platform`、`selfId`、`channelId`、`enabled` |
+| `enableActivePushTestCommand` | `boolean` | `false` | 是否注册 `${commandName}.主动推送测试`；仅 authority 3 可执行，不依赖 Cron 总开关 |
 | `enableConsoleWebuiTestArea` | `boolean` | `true` | 是否注册 Console 插件详情中的管理员主动推送测试区域 |
 
 ### 🤖 QQ 官方 Bot Markdown 适配

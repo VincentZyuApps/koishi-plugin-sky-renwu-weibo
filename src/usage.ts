@@ -65,6 +65,7 @@ export const usage = `
 <p><b>🎯 目标表：</b>每行配置备注、platform、selfId、Channel ID 和启用开关。<code>selfId</code> 留空时会向该平台所有已连接 Bot 发送；QQ 官方群请在 Channel ID 填写群 openid。</p>
 <p><b>🤖 QQ 官方 Bot：</b>主动推送会保留 QQ Markdown、JSON 按钮和 Puppeteer 卡片图策略；<code>qq-markdown</code> 与按钮只对 <code>platform=qq</code> 的官方群聊目标生效。</p>
 <p><b>🧪 Console 测试：</b>开启 <code>enableConsoleWebuiTestArea</code> 并保存后，插件详情顶部会注册测试区域。仅 authority 3 管理员可二次确认并点击立即推送；手动测试不受 <code>enableActivePush</code> 限制。</p>
+<p><b>💬 管理员测试指令：</b>开启 <code>enableActivePushTestCommand</code> 后，可由 authority 3 管理员执行 <code>\${commandName}.主动推送测试</code>。该指令使用已保存的主动推送目标，不依赖 <code>enableActivePush</code>；无论 verbose 开关状态都会回执简要结果，开启对应 verbose 后才补充逐目标详情。</p>
 <p><b>⚠️ 失败行为：</b>抓取失败始终写入 Console；开启 <code>verboseSessionLog</code> 时，失败说明还会发送到全部启用目标。单个目标发送失败只记录 Console，不阻塞其他目标。</p>
 </div>
 </details>

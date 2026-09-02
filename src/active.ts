@@ -5,7 +5,7 @@ import { sendDailyResultToTarget, type ActiveDeliveryTarget } from './message'
 import { logInfo } from './utils/logger'
 import type { DailyResult } from './weibo'
 
-export type ActivePushTrigger = 'cron' | 'console'
+export type ActivePushTrigger = 'cron' | 'console' | 'command'
 
 export interface ActivePushTargetResult {
   note: string
@@ -131,7 +131,7 @@ export class ActivePushService {
           ok: result.ok,
           message,
         })
-        logInfo(this.ctx, this.config, result.ok
+        logInfo(this.ctx, this.config, '', result.ok
           ? `主动推送成功 -> ${target.label}: ${message}`
           : `主动推送未完整成功 -> ${target.label}: ${message}`)
       } catch (error) {
@@ -144,12 +144,13 @@ export class ActivePushService {
           ok: false,
           message,
         })
-        logInfo(this.ctx, this.config, `主动推送失败 -> ${target.label}: ${message}`)
+        logInfo(this.ctx, this.config, '', `主动推送失败 -> ${target.label}: ${message}`)
       }
     }
 
     const successCount = targetResults.filter((item) => item.ok).length
-    const message = `主动推送完成：${successCount}/${targetResults.length} 个 Bot 目标成功。`
+    const firstFailure = targetResults.find((item) => !item.ok)
+    const message = `主动推送完成：${successCount}/${targetResults.length} 个 Bot 目标成功。${firstFailure ? ` 首个失败：${firstFailure.note} - ${firstFailure.message}` : ''}`
     logInfo(this.ctx, this.config, successCount > 0 ? `✅ ${message}` : `⚠️ ${message}`)
     return {
       ok: successCount > 0,
@@ -178,7 +179,7 @@ export class ActivePushService {
       if (!target.platform || !target.channelId) {
         const message = 'platform 和 channelId 均为必填项。'
         results.push({ note: label, platform: target.platform, channelId: target.channelId, ok: false, message })
-        logInfo(this.ctx, this.config, `主动推送目标无效 -> ${label}: ${message}`)
+        logInfo(this.ctx, this.config, '', `主动推送目标无效 -> ${label}: ${message}`)
         continue
       }
 
@@ -188,7 +189,7 @@ export class ActivePushService {
           ? `未找到 Bot：${target.platform} / ${target.selfId}`
           : `未找到平台 ${target.platform} 的在线 Bot。`
         results.push({ note: label, platform: target.platform, channelId: target.channelId, ok: false, message })
-        logInfo(this.ctx, this.config, `主动推送目标不可用 -> ${label}: ${message}`)
+        logInfo(this.ctx, this.config, '', `主动推送目标不可用 -> ${label}: ${message}`)
         continue
       }
 
@@ -218,7 +219,7 @@ export class ActivePushService {
         await target.bot.sendMessage(target.channelId, `⚠️ ${message}`)
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error)
-        logInfo(this.ctx, this.config, `主动推送失败提示发送失败 -> ${target.label}: ${detail}`)
+        logInfo(this.ctx, this.config, '', `主动推送失败提示发送失败 -> ${target.label}: ${detail}`)
       }
     }
   }
