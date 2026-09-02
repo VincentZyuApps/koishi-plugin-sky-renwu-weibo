@@ -3,7 +3,7 @@
 # koishi-plugin-sky-renwu-weibo
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-sky-renwu-weibo?style=flat-square&logo=npm)](https://www.npmjs.com/package/koishi-plugin-sky-renwu-weibo)
-[![npm-download](https://img.shields.io/npm/dm/koishi-plugin-sky-renwu-weibo?style=flat-square&logo=npm)](https://www.npmjs.com/package/koishi-plugin-sky-renwu-weibo)
+[![npm-download](https://img.shields.io/npm/dm/koishi-plugin-sky-renwu-weibo?style=flat-square&logo=npm)](https://npm-stat.com/charts.html?package=koishi-plugin-sky-renwu-weibo)
 
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/VincentZyuApps/koishi-plugin-sky-renwu-weibo)
 [![Gitee](https://img.shields.io/badge/Gitee-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/vincent-zyu/koishi-plugin-sky-renwu-weibo)
