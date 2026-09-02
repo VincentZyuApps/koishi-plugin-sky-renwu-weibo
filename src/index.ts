@@ -1,6 +1,9 @@
 import { Context, h, Session } from 'koishi'
 import type {} from '@koishijs/assets'
+import type {} from '@koishijs/plugin-console'
 import type {} from '@koishijs/plugin-server'
+import { ActivePushService } from './active'
+import { applyActivePushConsole } from './console'
 import { Config, WEIBO_ACCESS_MODE, type Config as ConfigType, type WeiboAccessModeType } from './config'
 import { sendDailyResult } from './message'
 import { applyQQServices } from './qq/server'
@@ -11,7 +14,7 @@ import { fetchChineseServerDaily, type DailyResult } from './weibo'
 
 export const name = 'sky-renwu-weibo'
 export const inject = {
-  optional: ['puppeteer', 'assets', 'server'],
+  optional: ['puppeteer', 'assets', 'server', 'console'],
 }
 
 export { Config, usage }
@@ -27,6 +30,27 @@ export function apply(ctx: Context, config: ConfigType) {
     logInfo(ctx, config, `字体预检查失败，将使用系统默认字体：${error instanceof Error ? error.message : String(error)}`)
   })
   applyQQServices(ctx)
+
+  const getDailyResult = async (fetchConfig: ConfigType, useCache = true) => {
+    const now = Date.now()
+    const cacheKey = fetchConfig.weiboAccessMode
+    const cached = cache[cacheKey]
+    if (useCache && cached && fetchConfig.cacheMinutes > 0 && now - cached.fetchedAt < fetchConfig.cacheMinutes * 60_000) {
+      logInfo(ctx, fetchConfig, '', `命中缓存: mode=${cacheKey}, ageMs=${now - cached.fetchedAt}, cacheMinutes=${fetchConfig.cacheMinutes}`)
+      return cached
+    }
+
+    logInfo(ctx, fetchConfig, '', `缓存未命中，开始请求微博接口: mode=${cacheKey}`)
+    const result = await fetchChineseServerDaily(ctx, fetchConfig)
+    cache[cacheKey] = result
+    logInfo(ctx, fetchConfig, '', `微博接口请求完成并写入缓存: mode=${cacheKey}, fetchedAt=${result.fetchedAt}`)
+    return result
+  }
+
+  const activePushService = new ActivePushService(ctx, config, getDailyResult)
+  ctx.on('ready', () => activePushService.start())
+  ctx.on('dispose', () => activePushService.stop())
+  applyActivePushConsole(ctx, config, activePushService)
 
   ctx.command(config.commandName, '📅✅ 访问微博获取光遇国服每日任务 ✨')
     .alias('今日光遇国服任务')
@@ -63,7 +87,7 @@ export function apply(ctx: Context, config: ConfigType) {
           logInfo(ctx, config, '', `等待提示消息 ID: ${waitingHintMsgId}`)
         }
 
-        const result = await getCachedDailyResult(effectiveConfig)
+        const result = await getDailyResult(effectiveConfig)
         logInfo(ctx, effectiveConfig, '', `每日任务获取完成: mode=${effectiveConfig.weiboAccessMode}, textLength=${result.text.length}, imageUrls=${result.imageUrls.length}, imageBuffers=${result.imageBuffers.length}`)
         await sendDailyResult(ctx, session, effectiveConfig, result)
       } catch (error) {
@@ -79,22 +103,6 @@ export function apply(ctx: Context, config: ConfigType) {
         }
       }
     })
-
-  async function getCachedDailyResult(fetchConfig: ConfigType) {
-    const now = Date.now()
-    const cacheKey = fetchConfig.weiboAccessMode
-    const cached = cache[cacheKey]
-    if (cached && fetchConfig.cacheMinutes > 0 && now - cached.fetchedAt < fetchConfig.cacheMinutes * 60_000) {
-      logInfo(ctx, fetchConfig, '', `命中缓存: mode=${cacheKey}, ageMs=${now - cached.fetchedAt}, cacheMinutes=${fetchConfig.cacheMinutes}`)
-      return cached
-    }
-
-    logInfo(ctx, fetchConfig, '', `缓存未命中，开始请求微博接口: mode=${cacheKey}`)
-    const result = await fetchChineseServerDaily(ctx, fetchConfig)
-    cache[cacheKey] = result
-    logInfo(ctx, fetchConfig, '', `微博接口请求完成并写入缓存: mode=${cacheKey}, fetchedAt=${result.fetchedAt}`)
-    return result
-  }
 }
 
 function getQuotePrefix(session: Session, config: ConfigType) {

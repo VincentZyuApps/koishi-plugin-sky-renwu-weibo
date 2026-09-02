@@ -63,6 +63,14 @@ export interface MsgFormEntry {
   enabled: boolean
 }
 
+export interface ActivePushTarget {
+  note: string
+  platform: string
+  selfId: string
+  channelId: string
+  enabled: boolean
+}
+
 // ====================
 // 📋 配置接口定义
 // ====================
@@ -92,6 +100,16 @@ export interface Config {
   enableWaitingHint: boolean
   msgFormArr: Array<MsgFormType | MsgFormEntry>
   strictOrderMode: boolean
+
+  // ==================
+  // 📣 主动消息推送配置字段
+  // ==================
+  enableActivePush: boolean
+  activePushCron: string
+  activePushTimezoneGmtOffset: number
+  activePushUseCache: boolean
+  activePushTargets: ActivePushTarget[]
+  enableConsoleWebuiTestArea: boolean
 
   // ==================
   // 🤖 QQ 官方 Bot Markdown 配置字段
@@ -231,6 +249,87 @@ export const Config: Schema<Config> = Schema.intersect([
         '❌ 关闭：多个发送形式并行发送，速度可能更快，但发送顺序不保证',
       ].join('<br/>')),
   }).description('💬 消息发送形式配置'),
+
+  // ==================
+  // 📣 主动消息推送配置分组
+  // ==================
+  Schema.object({
+    enableActivePush: Schema.boolean()
+      .default(false)
+      .description('📣 是否启用 Cron 定时主动推送。关闭时不会注册定时任务；Console 手动测试不受此开关影响。'),
+    activePushCron: Schema.string()
+      .default('0 1,7,13,19 * * *')
+      .description('⏰ 主动消息推送 Cron 表达式（5 段）。默认每天 01:00、07:00、13:00、19:00 触发。示例：<code>0 8 * * *</code> 表示每天 08:00；<code>*/30 * * * *</code> 表示每 30 分钟。'),
+    activePushTimezoneGmtOffset: Schema.number()
+      .min(-12)
+      .max(14)
+      .step(1)
+      .default(8)
+      .description('🌍 Cron 时区的 GMT 偏移，默认 <code>8</code> 表示 GMT+8。仅支持整数偏移，不处理夏令时。'),
+    activePushUseCache: Schema.boolean()
+      .default(false)
+      .description('🧊 主动推送是否使用现有微博缓存。默认关闭：每次 Cron 或 Console 测试都会重新请求微博；开启后才遵循 cacheMinutes。'),
+    activePushTargets: Schema.array(Schema.object({
+      note: Schema.string()
+        .default('')
+        .description('📝 备注'),
+      platform: Schema.string()
+        .default('qq')
+        .description('🎯 platform'),
+      selfId: Schema.string()
+        .default('')
+        .description('🤖 Bot ID'),
+      channelId: Schema.string()
+        .default('')
+        .description('📡 Channel ID'),
+      enabled: Schema.boolean()
+        .default(true)
+        .description('✅ 是否启用'),
+    }))
+      .role('table')
+      .default([{
+        note: 'dev',
+        platform: 'onebot',
+        selfId: '3967912008',
+        channelId: '958366323',
+        enabled: true,
+      }, {
+        note: 'QQ 官方 Bot',
+        platform: 'qq',
+        selfId: '5685784309055952273',
+        channelId: 'B81B087C21A62EA2F1E2D966E5533B82',
+        enabled: true,
+      }, {
+        note: 'Discord',
+        platform: 'discord',
+        selfId: '1376778677991374909',
+        channelId: '1347176007542509599',
+        enabled: true,
+      }, {
+        note: 'Telegram',
+        platform: 'telegram',
+        selfId: '8762163282',
+        channelId: '-1003966795552',
+        enabled: true,
+      }, {
+        note: 'Lark',
+        platform: 'lark',
+        selfId: 'ou_e611dda7979f5d5a9c8e2ffdb87ca41c',
+        channelId: 'oc_de7161c3b2f87e5708ccfabad4f314ea',
+        enabled: true,
+      }])
+      .description([
+        '🎯 主动推送目标列表。每个启用目标会独立发送；单个目标失败不会阻塞其他目标。',
+        '<i><code>📝 备注</code>：仅用于 Console 和日志显示；留空时自动使用 platform / channelId。</i>',
+        '<i><code>🎯 platform</code>：例如 qq、onebot、qqguild、discord。</i>',
+        '<i><code>🤖 Bot ID</code>：填写后精确匹配；留空时向该平台所有已连接 Bot 发送。</i>',
+        '<i><code>📡 Channel ID</code>：qq 官方群填写群 openid；onebot 普通群填写真实 QQ 群号。</i>',
+        '<i><code>✅ 是否启用</code>：关闭后跳过此目标。</i>',
+      ].join('<br/>')),
+    enableConsoleWebuiTestArea: Schema.boolean()
+      .default(true)
+      .description('🧪 是否在 Koishi Console 的插件详情顶部注册主动推送测试区域。默认开启；仅管理员可二次确认并立即测试当前生效配置。'),
+  }).description('📣 主动消息推送'),
 
   // ==================
   // 🤖 QQ 官方 Bot Markdown 适配配置分组

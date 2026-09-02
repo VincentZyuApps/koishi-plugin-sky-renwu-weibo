@@ -26,6 +26,16 @@ export function filterQQButtonModesForSession(
   return isQQGuildChannel(session) ? [...buttonModes] : []
 }
 
+export function filterQQButtonModesForTarget(
+  buttonModes: readonly QQMarkdownButtonMode[],
+  target: { platform: string; channelId: string },
+): QQMarkdownButtonMode[] {
+  return target.platform === 'qq'
+    && !String(target.channelId || '').startsWith('private:')
+    ? [...buttonModes]
+    : []
+}
+
 export function isQQGuildChannel(session: Session) {
   return session.platform === 'qq'
     && !!session.guildId

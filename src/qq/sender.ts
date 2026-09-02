@@ -1,4 +1,4 @@
-import { h, type Context, type Session } from 'koishi'
+import { h, type Bot, type Context, type Session } from 'koishi'
 import { QQ_MARKDOWN_PUPPETEER_IMAGE_STORAGE_MODE, type Config } from '../config'
 import type { RenderedDailyImage } from '../templates/puppeteer-image'
 import { formatDailyQQMarkdown } from '../templates/qq-markdown'
@@ -12,7 +12,7 @@ import {
 import { uploadQQMarkdownPuppeteerImageViaAssets } from './assets'
 import { formatPuppeteerImageMarkdown, fitImageDimensionsByWidth } from './image'
 import { buildDailyKeyboard, QQ_MARKDOWN_BUTTON_ONLY_CONTENT } from './keyboard'
-import { sendQQMarkdown } from './markdown'
+import { sendQQMarkdown, sendQQMarkdownToTarget } from './markdown'
 import { notifyQQButtonSkip } from './notify'
 import { storeQQMarkdownPuppeteerImage } from './server'
 
@@ -94,6 +94,30 @@ export async function sendQQPuppeteerImageWithButtons(
   const dimensions = fitImageDimensionsByWidth(renderedImage, QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE)
   logInfo(ctx, config, '', `发送 QQ Markdown Puppeteer 卡片图并附带按钮: rawSize=${renderedImage.width}x${renderedImage.height}, markdownSize=${dimensions.width}x${dimensions.height}`)
   await sendQQMarkdown(session, formatPuppeteerImageMarkdown(imageUrl, dimensions.width, dimensions.height), buildDailyKeyboard(config), true)
+}
+
+export async function sendQQPuppeteerImageWithButtonsToTarget(
+  ctx: Context,
+  bot: Bot,
+  channelId: string,
+  config: Config,
+  renderedImage: RenderedDailyImage,
+) {
+  const imageUrl = await resolveQQPuppeteerImageUrl(ctx, config, renderedImage.base64)
+  const dimensions = fitImageDimensionsByWidth(renderedImage, QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE)
+  logInfo(ctx, config, '', `主动发送 QQ Markdown Puppeteer 卡片图并附带按钮: rawSize=${renderedImage.width}x${renderedImage.height}, markdownSize=${dimensions.width}x${dimensions.height}`)
+  return sendQQMarkdownToTarget(bot, channelId, formatPuppeteerImageMarkdown(imageUrl, dimensions.width, dimensions.height), buildDailyKeyboard(config))
+}
+
+async function resolveQQPuppeteerImageUrl(ctx: Context, config: Config, imageBase64: string) {
+  if (config.qqMarkdownPuppeteerImageStorageMode === QQ_MARKDOWN_PUPPETEER_IMAGE_STORAGE_MODE.ASSETS) {
+    return uploadQQMarkdownPuppeteerImageViaAssets(ctx, config, imageBase64)
+  }
+
+  logInfo(ctx, config, '', 'append-puppeteer-image 使用 server 模式写入临时卡片图缓存')
+  const imageUrl = await storeQQMarkdownPuppeteerImage(ctx, config, imageBase64)
+  logInfo(ctx, config, '', `server 模式缓存完成: ${imageUrl}`)
+  return imageUrl
 }
 
 function sendSessionImage(session: Session, config: Config, imageBase64: string) {

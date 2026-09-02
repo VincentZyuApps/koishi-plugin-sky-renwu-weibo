@@ -1,8 +1,11 @@
-import { Context, h, Session } from 'koishi'
+import { Bot, Context, h, Session } from 'koishi'
 import { MSG_FORM, type Config, type MsgFormType } from './config'
 import {
   filterQQButtonModesForSession,
+  filterQQButtonModesForTarget,
+  hasAppendQQMarkdownButtonMode,
   hasAppendQQPuppeteerImageButtonMode,
+  hasStandaloneQQButtonMode,
   normalizeQQButtonModes,
   type QQMarkdownButtonMode,
 } from './qq/button'
@@ -15,10 +18,14 @@ import {
 import { formatDailyForward } from './templates/forward'
 import { formatDailyImageWithText } from './templates/image-with-text'
 import { renderDailyImage } from './templates/puppeteer-image'
+import { formatDailyQQMarkdown } from './templates/qq-markdown'
 import { formatDailyText } from './templates/text'
 import { formatDailyTextWithImage } from './templates/text-with-image'
 import { logInfo } from './utils/logger'
 import type { DailyResult } from './weibo'
+import { buildDailyKeyboard, QQ_MARKDOWN_BUTTON_ONLY_CONTENT } from './qq/keyboard'
+import { sendQQMarkdownToTarget } from './qq/markdown'
+import { sendQQPuppeteerImageWithButtonsToTarget } from './qq/sender'
 
 export function normalizeMsgForms(config: Config) {
   const rawForms = Array.isArray(config.msgFormArr) ? config.msgFormArr : []
@@ -187,4 +194,145 @@ function toImageMessage(config: Config, imageBase64: string) {
 
 function isSupportedForwardPlatform(platform?: string) {
   return ['onebot', 'red', 'discord'].includes(String(platform || '').trim())
+}
+
+export interface ActiveDeliveryTarget {
+  bot: Bot
+  channelId: string
+  label: string
+}
+
+export interface ActiveDeliveryResult {
+  ok: boolean
+  sentModes: string[]
+  skippedModes: string[]
+  failures: string[]
+}
+
+export async function sendDailyResultToTarget(
+  ctx: Context,
+  target: ActiveDeliveryTarget,
+  config: Config,
+  result: DailyResult,
+): Promise<ActiveDeliveryResult> {
+  const msgForms = normalizeMsgForms(config)
+  const sentModes: string[] = []
+  const skippedModes: string[] = []
+  const failures: string[] = []
+
+  if (!msgForms.length) {
+    return {
+      ok: false,
+      sentModes,
+      skippedModes,
+      failures: ['未选择任何消息发送形式。'],
+    }
+  }
+
+  const configuredButtonModes = normalizeQQButtonModes(config)
+  const buttonModes = filterQQButtonModesForTarget(configuredButtonModes, {
+    platform: target.bot.platform,
+    channelId: target.channelId,
+  })
+
+  if (hasAppendQQMarkdownButtonMode(configuredButtonModes) && !msgForms.includes(MSG_FORM.QQ_MARKDOWN)) {
+    logInfo(ctx, config, 'QQ Markdown 按钮未发送：按钮行为 append-qq-markdown 需要在消息发送形式表格中启用 qq-markdown。')
+  }
+  if (hasAppendQQPuppeteerImageButtonMode(configuredButtonModes) && !msgForms.includes(MSG_FORM.PUPPETEER_IMAGE)) {
+    logInfo(ctx, config, 'QQ Markdown 按钮未发送：按钮行为 append-puppeteer-image 需要在消息发送形式表格中启用 puppeteer-image。')
+  }
+
+  const sendMode = async (mode: string, task: () => Promise<unknown>) => {
+    try {
+      await task()
+      sentModes.push(mode)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      failures.push(`${mode}: ${message}`)
+      logInfo(ctx, config, `主动推送模式失败 ${mode} -> ${target.label}: ${message}`)
+    }
+  }
+
+  const skipMode = (mode: string, reason: string) => {
+    skippedModes.push(mode)
+    logInfo(ctx, config, `主动推送跳过 ${mode} -> ${target.label}: ${reason}`)
+  }
+
+  const tasks = msgForms.map((mode) => async () => {
+    if (mode === MSG_FORM.TEXT_WITH_IMAGE) {
+      if (!result.text && result.imageBuffers.length === 0) return skipMode(mode, '当前数据不足。')
+      return sendMode(mode, () => sendTargetMessage(target, formatDailyTextWithImage(result)))
+    }
+
+    if (mode === MSG_FORM.IMAGE_WITH_TEXT) {
+      if (!result.text && result.imageBuffers.length === 0) return skipMode(mode, '当前数据不足。')
+      return sendMode(mode, () => sendTargetMessage(target, formatDailyImageWithText(result)))
+    }
+
+    if (mode === MSG_FORM.FORWARD) {
+      if (!result.text && result.imageBuffers.length === 0) return skipMode(mode, '当前数据不足。')
+      if (!isSupportedForwardPlatform(target.bot.platform)) return skipMode(mode, `平台 ${target.bot.platform} 不支持合并转发。`)
+      return sendMode(mode, () => sendTargetMessage(target, h.unescape(formatDailyForward(result, target.bot))))
+    }
+
+    if (mode === MSG_FORM.TEXT) {
+      if (!result.text) return skipMode(mode, '当前数据没有文字任务。')
+      return sendMode(mode, () => sendTargetMessage(target, formatDailyText(result)))
+    }
+
+    if (mode === MSG_FORM.PUPPETEER_IMAGE) {
+      if (!result.text && result.imageBuffers.length === 0) return skipMode(mode, '当前数据不足。')
+      if (!ctx.puppeteer) return skipMode(mode, '当前 Koishi 未启用 puppeteer 服务。')
+      return sendMode(mode, async () => {
+        const renderedImage = await renderDailyImage(ctx, result, config)
+        if (hasAppendQQPuppeteerImageButtonMode(buttonModes)) {
+          try {
+            await sendQQPuppeteerImageWithButtonsToTarget(ctx, target.bot, target.channelId, config, renderedImage)
+            return
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            logInfo(ctx, config, `主动推送 append-puppeteer-image 不可用，回退普通卡片图: ${message}`)
+          }
+        }
+        await sendTargetMessage(target, toImageMessage(config, renderedImage.base64))
+      })
+    }
+
+    if (mode === MSG_FORM.QQ_MARKDOWN) {
+      if (!result.text) return skipMode(mode, '当前数据没有文字任务。')
+      if (target.bot.platform !== 'qq') return skipMode(mode, `平台 ${target.bot.platform} 不是 QQ 官方 Bot。`)
+      return sendMode(mode, () => sendQQMarkdownToTarget(
+        target.bot,
+        target.channelId,
+        formatDailyQQMarkdown(result, config),
+        hasAppendQQMarkdownButtonMode(buttonModes) ? buildDailyKeyboard(config) : null,
+      ).then(() => undefined))
+    }
+  })
+
+  if (config.strictOrderMode !== false) {
+    for (const task of tasks) await task()
+  } else {
+    await Promise.all(tasks.map((task) => task()))
+  }
+
+  if (hasStandaloneQQButtonMode(buttonModes)) {
+    await sendMode('qq-markdown-button', () => sendQQMarkdownToTarget(
+      target.bot,
+      target.channelId,
+      QQ_MARKDOWN_BUTTON_ONLY_CONTENT,
+      buildDailyKeyboard(config),
+    ).then(() => undefined))
+  }
+
+  return {
+    ok: sentModes.length > 0 && failures.length === 0,
+    sentModes,
+    skippedModes,
+    failures,
+  }
+}
+
+function sendTargetMessage(target: ActiveDeliveryTarget, content: any) {
+  return target.bot.sendMessage(target.channelId, content)
 }

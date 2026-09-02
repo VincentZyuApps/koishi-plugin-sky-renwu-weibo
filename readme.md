@@ -151,6 +151,32 @@ scripts/
 
 QQ 官方 Bot 平台使用 `puppeteer-image` 或 `append-puppeteer-image` 时，建议把 Puppeteer 卡片图输出格式改为 `jpeg` 或 `webp`，并适当调低 `screenshotQuality`。如果继续使用默认 PNG，微博图片较多时生成的长图可能过大，导致 QQ 平台不接受或不渲染图片。
 
+## 📣 主动消息推送
+
+主动推送不需要用户发送指令。插件会在 `activePushCron` 命中时抓取当天任务，并向 `activePushTargets` 中所有启用目标发送。每轮只抓取一次数据，再按目标与 Bot 分发；一个目标失败不会阻塞其他目标。
+
+默认 Cron 为 `0 1,7,13,19 * * *`，表示每天 01:00、07:00、13:00、19:00 触发。时间由 `activePushTimezoneGmtOffset` 的 GMT 偏移解释，默认 `8` 即 GMT+8；只支持整数偏移，不处理夏令时。
+
+主动推送默认关闭，目标列表默认空。`activePushUseCache=false` 时，每次定时或手动测试都绕过 `cacheMinutes` 重新请求微博；开启后才会复用现有缓存。
+
+### 🎯 目标填写
+
+`activePushTargets` 是 WebUI 表格，每行包含备注、platform、Bot selfId、Channel ID 和启用开关。
+
+| 平台 | Channel ID | selfId 留空 |
+|---|---|---|
+| `qq` | QQ 官方 Bot 群 `openid` | 向全部 QQ 官方 Bot 发送 |
+| `onebot` | 真实 QQ 群号，或 `private:QQ号` | 向全部 OneBot 发送 |
+| `qqguild` / `discord` 等 | 真实频道 ID | 向该平台全部已连接 Bot 发送 |
+
+填写 `selfId` 时会精确匹配对应 Bot；留空则按设计向该平台所有已连接 Bot 发送，可能产生多条消息。`qq-markdown` 与 QQ JSON 按钮只会在 `platform=qq` 的官方群聊目标生效；其他发送形式继续复用 `msgFormArr`。
+
+### 🧪 Console 手动测试
+
+`enableConsoleWebuiTestArea` 默认开启，Koishi Console 的插件详情顶部会出现“主动消息推送测试”区域；不需要时可在插件配置中关闭。该区域仅允许 authority 3 的管理员访问，点击“立即推送”会先二次确认，再使用当前生效的目标、发送形式和缓存配置发送一次。
+
+手动测试不受 `enableActivePush` 限制，便于在开启定时任务前验证 QQ 官方 Bot、频道 ID 与图片/Markdown 配置。Cron 抓取失败始终写入控制台；当 `verboseSessionLog=true` 时，失败说明还会发送到全部启用目标。
+
 ### 🖼️ 效果预览
 
 ![Puppeteer 卡片图预览](./docs/images/preview/preview.puppeteer-image.png)
@@ -186,6 +212,17 @@ QQ 官方 Bot 平台使用 `puppeteer-image` 或 `append-puppeteer-image` 时，
 | `enableWaitingHint` | `boolean` | `true` | 是否显示“获取并生成中.... 请耐心等待”等待提示；所有发送形式完成后会尝试撤回 |
 | `msgFormArr` | `{ mode, enabled }[]` | 见说明 | 每日任务发送形式表格，可调整顺序，可启用 / 禁用；默认启用 `forward`、`puppeteer-image` 和 `qq-markdown` |
 | `strictOrderMode` | `boolean` | `true` | 是否严格按照表格顺序串行发送；关闭后会并行发送，顺序不保证 |
+
+### 📣 主动消息推送
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enableActivePush` | `boolean` | `false` | 是否启动 Cron 定时推送；不影响 Console 手动测试 |
+| `activePushCron` | `string` | `"0 1,7,13,19 * * *"` | 5 段 Cron 表达式，默认每天 01:00、07:00、13:00、19:00 |
+| `activePushTimezoneGmtOffset` | `number` | `8` | Cron 使用的整数 GMT 偏移，`8` 表示 GMT+8；范围 -12 至 14，不处理夏令时 |
+| `activePushUseCache` | `boolean` | `false` | 是否按 `cacheMinutes` 使用微博缓存；关闭时每次主动推送强制刷新 |
+| `activePushTargets` | `ActivePushTarget[]` | `dev` OneBot 目标 | 主动推送目标表；包含 `note`、`platform`、`selfId`、`channelId`、`enabled` |
+| `enableConsoleWebuiTestArea` | `boolean` | `true` | 是否注册 Console 插件详情中的管理员主动推送测试区域 |
 
 ### 🤖 QQ 官方 Bot Markdown 适配
 

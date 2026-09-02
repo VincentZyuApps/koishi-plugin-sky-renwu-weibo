@@ -1,5 +1,9 @@
 const pkg = require('../package.json')
 
+const detailsStyle = 'margin:10px 0;border:1px solid var(--k-color-border, #909399);border-radius:8px;background:var(--k-card-bg, transparent);color:var(--k-text-dark, inherit);overflow:hidden;box-shadow:var(--k-card-shadow, 0 1px 3px rgb(0 0 0 / 12%));transition:var(--color-transition, border-color .2s ease, background-color .2s ease)'
+const summaryStyle = 'padding:9px 12px;background:var(--k-hover-bg, rgba(127, 127, 127, .12));color:var(--k-text-dark, inherit);cursor:pointer;user-select:none'
+const detailsBodyStyle = 'padding:2px 14px 8px;border-top:1px solid var(--k-color-divider, rgba(127, 127, 127, .28));background:var(--k-card-bg, transparent);color:var(--k-text-dark, inherit)'
+
 const KOISHI_LOGO_BASE64 = 'data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAABIAAAASCAYAAABWzo5XAAABU0lEQVR42p2UQSsFYRSGnxnqLuytKWKpKFkQNsS%2FsOHPWPADLCmxU5S7UzYWNrJR7lYiRF2FeWzOMKZ7mXHqNNP5vvP2nu%2B850CY2lP4X1K31ZbaDm%2BpO%2Bpyp5wfAXVEPfRvO1JHf4AVQGbUh7j4EZ4VkrNCXPVRnf3CUBN1SH2KC28VGOV3ntRhNclZHdcAKYM11QR1oVBOXctzFlNgBTC8qmXxPQEegbVeYApIgJT6tg%2F0AdMp0B%2FBpCabK2AAmAAa%2F2GRBft1oBFPkqTAba7LCiAfQC9wClwAY1HJHepuiO29Yrsf1Dn1uiDU3RTYCtTkl1Leg8k9MB4NGgReI28rV3azgyCz0og01Xl1Uz1QX8uCTELm3UbkTF1VJ9Wr0tn3iBSGdjYG0XivE3VN3VD31PM4a3cc2tIGGI0VkTO7rLxGuiy25ejmjfqsvkSXui62TxaK03td4FXTAAAAAElFTkSuQmCC'
 
 export const usage = `
@@ -39,8 +43,9 @@ export const usage = `
 <p>🤖 光遇 Bot / QQ 官方 Bot / Koishi 相关交流，也欢迎加入光遇 Bot QQ 群：<b style="color: #EA5252;">475328908</b></p>
 <p>💡 在群里直接艾特我，回复的更快哦~ ✨</p>
 
-<details>
-<summary><h2 style="color: #ff8a00; font-weight: 900; font-size: 24px; margin: 20px 0;">🧩 可选依赖与 QQ 图片体积提醒（点击展开）</h2></summary>
+<details style="${detailsStyle}">
+<summary style="${summaryStyle}"><b style="color: #ff8a00;">🧩 可选依赖与 QQ 图片体积提醒</b></summary>
+<div style="${detailsBodyStyle}">
 <p><b>🖼️ puppeteer 是可选服务：</b>只有启用 <code>puppeteer-image</code> 卡片图发送形式时才需要，用于把每日任务渲染成图片。</p>
 <p><b>🌐 assets / server 是可选服务：</b>只有启用 QQ Markdown 按钮行为 <code>append-puppeteer-image</code> 时才会按配置模式使用，用于把 Puppeteer 卡片图转换成 QQ 官方 Bot 可访问的公网图片 URL。</p>
 <p><b>⚠️ QQ JSON 按钮限制：</b><code>qqMarkdownButtonMode</code> 只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为。</p>
@@ -48,6 +53,20 @@ export const usage = `
 <p><b>🧷 standalone 与 append-qq-markdown：</b>这两种按钮行为不会使用上面的 assets / server 配置，也不依赖它们。</p>
 <p><b>⚠️ assets 模式：</b>只能新增图片，不能删除，文件名由 assets 服务决定，通常无法自定义。</p>
 <p><b>⚠️ server 模式：</b>会把临时图片写到 <code>ctx.baseDir/cache/sky-renwu-weibo</code>，支持时间命名，并按数量上限仅保留最新图片；<code>qqMarkdownPuppeteerImageMaxFiles &lt;= 0</code> 表示不设置上限。请确保本插件配置的公网 URL 或 Koishi <code>server.selfUrl</code> 可被 QQ 官方 Bot 访问。</p>
+</div>
+</details>
+
+<details style="${detailsStyle}">
+<summary style="${summaryStyle}"><b style="color: #2f855a;">📣 主动消息推送与 Console 测试</b></summary>
+<div style="${detailsBodyStyle}">
+<p><b>⏰ Cron 定时推送：</b>启用 <code>enableActivePush</code> 后，插件会按 <code>activePushCron</code> 抓取当天任务，并向 <code>activePushTargets</code> 中所有启用目标主动发送。默认表达式 <code>0 1,7,13,19 * * *</code> 表示每天 01:00、07:00、13:00、19:00。</p>
+<p><b>🌍 GMT 偏移：</b><code>activePushTimezoneGmtOffset</code> 默认 <code>8</code>，即 GMT+8；只支持整数偏移，不处理夏令时。</p>
+<p><b>🧊 缓存：</b><code>activePushUseCache</code> 默认关闭，因此每次 Cron 或 Console 测试都会重新请求微博；开启后才遵循现有 <code>cacheMinutes</code>。</p>
+<p><b>🎯 目标表：</b>每行配置备注、platform、selfId、Channel ID 和启用开关。<code>selfId</code> 留空时会向该平台所有已连接 Bot 发送；QQ 官方群请在 Channel ID 填写群 openid。</p>
+<p><b>🤖 QQ 官方 Bot：</b>主动推送会保留 QQ Markdown、JSON 按钮和 Puppeteer 卡片图策略；<code>qq-markdown</code> 与按钮只对 <code>platform=qq</code> 的官方群聊目标生效。</p>
+<p><b>🧪 Console 测试：</b>开启 <code>enableConsoleWebuiTestArea</code> 并保存后，插件详情顶部会注册测试区域。仅 authority 3 管理员可二次确认并点击立即推送；手动测试不受 <code>enableActivePush</code> 限制。</p>
+<p><b>⚠️ 失败行为：</b>抓取失败始终写入 Console；开启 <code>verboseSessionLog</code> 时，失败说明还会发送到全部启用目标。单个目标发送失败只记录 Console，不阻塞其他目标。</p>
+</div>
 </details>
 
 <p>通过微博 Ajax 获取光遇国服每日任务，默认数据源为 <a href="https://weibo.com/u/7360748659" target="_blank"><code>@今天游离翻车了吗</code></a>。</p>
@@ -70,8 +89,9 @@ export const usage = `
 
 <p>命令名称可在配置项 <code>commandName</code> 中修改。</p>
 
-<details>
-<summary><h3>🔐 微博访问策略与 Cookie（点击展开）</h3></summary>
+<details style="${detailsStyle}">
+<summary style="${summaryStyle}"><b style="color: #b45309;">🔐 微博访问策略与 Cookie</b></summary>
+<div style="${detailsBodyStyle}">
 
 <p>推荐保持默认访问策略 【D】：先尝试移动端无登录用户态，失败或未匹配到今日任务时再 fallback 到 PC 微博网页登录态。</p>
 <p>默认情况下可以先不填写 <code>weiboCookie</code>。如果移动端公开接口受限、无登录用户态没有匹配到今日任务，或想提高兜底稳定性，再使用 PC 微博网页登录态作为 fallback。</p>
@@ -109,5 +129,6 @@ export const usage = `
 <h4>⚠️ 注意</h4>
 
 <p><code>weibo_cookie.private.txt</code>、<code>latest.debug.log</code> 和 <code>.browser-profile</code> 都包含隐私信息，不要发给别人，也不要提交到 Git。</p>
+</div>
 </details>
 `
