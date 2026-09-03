@@ -28,7 +28,7 @@ export const usage = `
   <a href="https://forum.koishi.xyz/t/topic/12627" target="_blank">
     <img src="https://img.shields.io/badge/Koishi%20Forum-12627-5546A3?style=for-the-badge&logo=${KOISHI_LOGO_BASE64}&logoColor=white" alt="Koishi Forum">
   </a>
-  <a href="https://qm.qq.com/q/ZN7fxZ3qCq" target="_blank">
+  <a href="https://qm.qq.com/q/rvrRosfKMw" target="_blank">
     <img src="https://img.shields.io/badge/awa群_zyu建的qq群-1085190201-12B7F5?style=flat-square&logo=qq&logoColor=white" alt="awa群-zyu建的qq群">
   </a>
   <a href="https://qm.qq.com/q/oVxZoksppK" target="_blank">

@@ -162,7 +162,7 @@ export const Config: Schema<Config> = Schema.intersect([
       .default([
         '今日光遇国服任务',
         '今日国服任务',
-        '今日国服',
+        '今日光遇',
         'today-sky-cn-request',
         'today-cn-request',
         'today-sky',
@@ -296,7 +296,11 @@ export const Config: Schema<Config> = Schema.intersect([
       .description('📣 是否启用 Cron 定时主动推送。关闭时不会注册定时任务；Console 手动测试不受此开关影响。'),
     activePushCron: Schema.string()
       .default('0 1,7,13,19 * * *')
-      .description('⏰ 主动消息推送 Cron 表达式（5 段）。默认每天 01:00、07:00、13:00、19:00 触发。示例：<code>0 8 * * *</code> 表示每天 08:00；<code>*/30 * * * *</code> 表示每 30 分钟。'),
+      .description([
+        '⏰ 主动消息推送 Cron 表达式（5 段）。默认每天 01:00、07:00、13:00、19:00 触发。',
+        '示例：`0 8 * * *` 表示每天 08:00。',
+        '示例：`*/30 * * * *` 表示每 30 分钟。',
+      ].join('<br>')),
     activePushTimezoneGmtOffset: Schema.number()
       .min(-12)
       .max(14)
