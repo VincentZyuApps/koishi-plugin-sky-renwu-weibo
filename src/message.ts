@@ -26,17 +26,16 @@ import type { DailyResult } from './weibo'
 import { buildDailyKeyboard, QQ_MARKDOWN_BUTTON_ONLY_CONTENT } from './qq/keyboard'
 import { sendQQMarkdownToTarget } from './qq/markdown'
 import { sendQQPuppeteerImageWithButtonsToTarget } from './qq/sender'
+import { formatDailyMessageIntro } from './templates/common/intro'
 
 export function normalizeMsgForms(config: Config) {
   const rawForms = Array.isArray(config.msgFormArr) ? config.msgFormArr : []
-  const seen = new Set<string>()
   const forms: MsgFormType[] = []
 
   for (const entry of rawForms) {
     const mode = typeof entry === 'string' ? entry : entry?.enabled ? entry.mode : ''
     const normalized = String(mode || '').trim() as MsgFormType
-    if (!normalized || seen.has(normalized)) continue
-    seen.add(normalized)
+    if (!normalized) continue
     forms.push(normalized)
   }
 
@@ -50,6 +49,7 @@ export async function sendDailyResult(
   result: DailyResult,
 ) {
   const msgForms = normalizeMsgForms(config)
+  const intro = formatDailyMessageIntro(config, 'passive')
   if (!msgForms.length) {
     return sendSessionMessage(session, config, '已获取到光遇每日任务，但未选择任何发送形式。')
   }
@@ -61,7 +61,7 @@ export async function sendDailyResult(
   logInfo(ctx, config, '', `本次生效的 QQ Markdown 按钮行为: ${buttonModes.join(', ') || '(empty)'}`)
   logInfo(ctx, config, '', `发送执行模式: ${config.strictOrderMode !== false ? 'serial' : 'parallel'}`)
   await notifyInvalidQQButtonModes(ctx, session, config, msgForms, buttonModes)
-  const tasks = msgForms.map((mode) => () => sendDailyMode(ctx, session, config, result, msgForms, buttonModes, mode))
+  const tasks = msgForms.map((mode) => () => sendDailyMode(ctx, session, config, result, msgForms, buttonModes, mode, intro))
 
   if (config.strictOrderMode !== false) {
     for (const task of tasks) await task()
@@ -119,43 +119,44 @@ async function sendDailyMode(
   msgForms: string[],
   buttonModes: QQMarkdownButtonMode[],
   mode: MsgFormType,
+  intro: string,
 ) {
   logInfo(ctx, config, '', `准备执行发送模式: ${mode}`)
   if (mode === MSG_FORM.TEXT_WITH_IMAGE && shouldSendMode(ctx, config, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
     return sendWithModeGuard(ctx, config, mode, () =>
-      sendSessionMessage(session, config, formatDailyTextWithImage(result)),
+      sendSessionMessage(session, config, formatDailyTextWithImage(result, intro)),
     )
   }
 
   if (mode === MSG_FORM.IMAGE_WITH_TEXT && shouldSendMode(ctx, config, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
     return sendWithModeGuard(ctx, config, mode, () =>
-      sendSessionMessage(session, config, formatDailyImageWithText(result)),
+      sendSessionMessage(session, config, formatDailyImageWithText(result, intro)),
     )
   }
 
   if (mode === MSG_FORM.FORWARD && shouldSendMode(ctx, config, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
-    if (!isSupportedForwardPlatform(session.platform)) {
-      logInfo(ctx, config, `跳过发送模式 ${mode}: 当前平台 ${session.platform || '(unknown)'} 不支持合并转发，仅支持 onebot / red / discord。`)
+    if (!isForwardPlatformAllowed(config, session.platform)) {
+      logInfo(ctx, config, `跳过发送模式 ${mode}: 当前平台 ${session.platform || '(unknown)'} 不在 forward 图文合并转发允许的平台列表中。`)
       return
     }
 
     return sendWithModeGuard(ctx, config, mode, () =>
-      session.send(h.unescape(formatDailyForward(result, session.bot))),
+      session.send(h.unescape(formatDailyForward(result, session.bot, intro))),
     )
   }
 
   if (mode === MSG_FORM.TEXT && shouldSendMode(ctx, config, msgForms, mode, !!result.text)) {
     return sendWithModeGuard(ctx, config, mode, () =>
-      sendSessionMessage(session, config, formatDailyText(result)),
+      sendSessionMessage(session, config, formatDailyText(result, intro)),
     )
   }
 
   if (mode === MSG_FORM.PUPPETEER_IMAGE && shouldSendMode(ctx, config, msgForms, mode, !!result.text || result.imageBuffers.length > 0)) {
-    return sendPuppeteerImageMode(ctx, session, config, result, buttonModes)
+    return sendPuppeteerImageMode(ctx, session, config, result, buttonModes, intro)
   }
 
   if (mode === MSG_FORM.QQ_MARKDOWN && shouldSendMode(ctx, config, msgForms, mode, !!result.text)) {
-    return sendQQMarkdownMode(ctx, session, config, result, buttonModes)
+    return sendQQMarkdownMode(ctx, session, config, result, buttonModes, intro)
   }
 }
 
@@ -165,6 +166,7 @@ async function sendPuppeteerImageMode(
   config: Config,
   result: DailyResult,
   buttonModes: QQMarkdownButtonMode[],
+  intro: string,
 ) {
   if (!ctx.puppeteer) {
     logInfo(ctx, config, '跳过 Puppeteer 卡片图: 当前 Koishi 未启用 puppeteer 服务。')
@@ -176,11 +178,11 @@ async function sendPuppeteerImageMode(
 
   await sendWithModeGuard(ctx, config, MSG_FORM.PUPPETEER_IMAGE, async () => {
     logInfo(ctx, config, '', `开始渲染 Puppeteer 卡片图: type=${config.imageType}, width=${config.imageWidth}, quality=${config.screenshotQuality}`)
-    const renderedImage = await renderDailyImage(ctx, result, config)
+    const renderedImage = await renderDailyImage(ctx, result, config, intro)
     logInfo(ctx, config, '', `Puppeteer 卡片图渲染完成: base64Length=${renderedImage.base64.length}, size=${renderedImage.width}x${renderedImage.height}`)
 
     if (hasAppendQQPuppeteerImageButtonMode(buttonModes)) {
-      await sendQQPuppeteerImageWithButtons(ctx, session, config, renderedImage)
+      await sendQQPuppeteerImageWithButtons(ctx, session, config, renderedImage, intro)
       return
     }
 
@@ -192,8 +194,22 @@ function toImageMessage(config: Config, imageBase64: string) {
   return h.image(`data:image/${config.imageType};base64,${imageBase64}`)
 }
 
-function isSupportedForwardPlatform(platform?: string) {
-  return ['onebot', 'red', 'discord'].includes(String(platform || '').trim())
+function isForwardPlatformAllowed(config: Pick<Config, 'restrictForwardPlatforms' | 'forwardSupportedPlatforms'>, platform?: string) {
+  if (!config.restrictForwardPlatforms) return true
+  const supportedPlatforms = normalizeConfigStringList(config.forwardSupportedPlatforms)
+  return supportedPlatforms.includes(String(platform || '').trim())
+}
+
+function normalizeConfigStringList(values: unknown): string[] {
+  const seen = new Set<string>()
+  const normalized: string[] = []
+  for (const value of Array.isArray(values) ? values : []) {
+    const entry = String(value || '').trim()
+    if (!entry || seen.has(entry)) continue
+    seen.add(entry)
+    normalized.push(entry)
+  }
+  return normalized
 }
 
 export interface ActiveDeliveryTarget {
@@ -216,6 +232,7 @@ export async function sendDailyResultToTarget(
   result: DailyResult,
 ): Promise<ActiveDeliveryResult> {
   const msgForms = normalizeMsgForms(config)
+  const intro = formatDailyMessageIntro(config, 'active')
   const sentModes: string[] = []
   const skippedModes: string[] = []
   const failures: string[] = []
@@ -261,33 +278,33 @@ export async function sendDailyResultToTarget(
   const tasks = msgForms.map((mode) => async () => {
     if (mode === MSG_FORM.TEXT_WITH_IMAGE) {
       if (!result.text && result.imageBuffers.length === 0) return skipMode(mode, '当前数据不足。')
-      return sendMode(mode, () => sendTargetMessage(target, formatDailyTextWithImage(result)))
+      return sendMode(mode, () => sendTargetMessage(target, formatDailyTextWithImage(result, intro)))
     }
 
     if (mode === MSG_FORM.IMAGE_WITH_TEXT) {
       if (!result.text && result.imageBuffers.length === 0) return skipMode(mode, '当前数据不足。')
-      return sendMode(mode, () => sendTargetMessage(target, formatDailyImageWithText(result)))
+      return sendMode(mode, () => sendTargetMessage(target, formatDailyImageWithText(result, intro)))
     }
 
     if (mode === MSG_FORM.FORWARD) {
       if (!result.text && result.imageBuffers.length === 0) return skipMode(mode, '当前数据不足。')
-      if (!isSupportedForwardPlatform(target.bot.platform)) return skipMode(mode, `平台 ${target.bot.platform} 不支持合并转发。`)
-      return sendMode(mode, () => sendTargetMessage(target, h.unescape(formatDailyForward(result, target.bot))))
+      if (!isForwardPlatformAllowed(config, target.bot.platform)) return skipMode(mode, `平台 ${target.bot.platform} 不在 forward 图文合并转发允许的平台列表中。`)
+      return sendMode(mode, () => sendTargetMessage(target, h.unescape(formatDailyForward(result, target.bot, intro))))
     }
 
     if (mode === MSG_FORM.TEXT) {
       if (!result.text) return skipMode(mode, '当前数据没有文字任务。')
-      return sendMode(mode, () => sendTargetMessage(target, formatDailyText(result)))
+      return sendMode(mode, () => sendTargetMessage(target, formatDailyText(result, intro)))
     }
 
     if (mode === MSG_FORM.PUPPETEER_IMAGE) {
       if (!result.text && result.imageBuffers.length === 0) return skipMode(mode, '当前数据不足。')
       if (!ctx.puppeteer) return skipMode(mode, '当前 Koishi 未启用 puppeteer 服务。')
       return sendMode(mode, async () => {
-        const renderedImage = await renderDailyImage(ctx, result, config)
+        const renderedImage = await renderDailyImage(ctx, result, config, intro)
         if (hasAppendQQPuppeteerImageButtonMode(buttonModes)) {
           try {
-            await sendQQPuppeteerImageWithButtonsToTarget(ctx, target.bot, target.channelId, config, renderedImage)
+            await sendQQPuppeteerImageWithButtonsToTarget(ctx, target.bot, target.channelId, config, renderedImage, intro)
             return
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error)
@@ -304,7 +321,7 @@ export async function sendDailyResultToTarget(
       return sendMode(mode, () => sendQQMarkdownToTarget(
         target.bot,
         target.channelId,
-        formatDailyQQMarkdown(result, config),
+        formatDailyQQMarkdown(result, config, intro),
         hasAppendQQMarkdownButtonMode(buttonModes) ? buildDailyKeyboard(config) : null,
       ).then(() => undefined))
     }

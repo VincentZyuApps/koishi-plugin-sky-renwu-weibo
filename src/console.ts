@@ -1,14 +1,18 @@
-import type {} from '@koishijs/plugin-console'
+import type { Client } from '@koishijs/plugin-console'
 import { resolve } from 'path'
 import type { Context } from 'koishi'
 import type { ActivePushTarget, Config } from './config'
-import type { ActivePushResult, ActivePushService } from './active'
+import type { ActivePushProgress, ActivePushResult, ActivePushService } from './active'
 
 declare module '@koishijs/plugin-console' {
   interface Events {
     'sky-renwu-weibo/active-status'(): ReturnType<ActivePushService['getStatus']>
-    'sky-renwu-weibo/active-push'(targets?: ActivePushTarget[]): Promise<ActivePushResult>
+    'sky-renwu-weibo/active-push'(targets: ActivePushTarget[] | undefined, runId: string): Promise<ActivePushResult>
   }
+}
+
+interface ActivePushProgressPayload extends ActivePushProgress {
+  runId: string
 }
 
 export function applyActivePushConsole(ctx: Context, config: Config, service: ActivePushService) {
@@ -16,7 +20,13 @@ export function applyActivePushConsole(ctx: Context, config: Config, service: Ac
 
   ctx.inject(['console'], (consoleCtx) => {
     consoleCtx.console.addListener('sky-renwu-weibo/active-status', () => service.getStatus(), { authority: 3 })
-    consoleCtx.console.addListener('sky-renwu-weibo/active-push', (targets) => service.trigger('console', targets), { authority: 3 })
+    consoleCtx.console.addListener('sky-renwu-weibo/active-push', async function (this: Client, targets, runId) {
+      const progressRunId = String(runId || '')
+      return service.trigger('console', targets, async (progress) => {
+        const body: ActivePushProgressPayload = { runId: progressRunId, ...progress }
+        this.send({ type: 'sky-renwu-weibo/active-push-progress', body })
+      })
+    }, { authority: 3 })
     consoleCtx.console.addEntry({
       dev: resolve(__dirname, '../client/index.ts'),
       prod: resolve(__dirname, '../dist'),

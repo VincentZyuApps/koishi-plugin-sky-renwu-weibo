@@ -1,7 +1,7 @@
 import { QQ_MARKDOWN_MODE, type Config } from '../config'
 import { fitImageDimensions, getImageDimensions } from '../qq/image'
 import type { DailyResult } from '../weibo'
-import { DAILY_TASK_HINT_MARKDOWN } from './common/hint'
+import { formatDailyMessageIntroMarkdown } from './common/intro'
 
 const QQ_MARKDOWN_IMAGE_SIZE = {
   maxWidth: 600,
@@ -9,22 +9,22 @@ const QQ_MARKDOWN_IMAGE_SIZE = {
   fallback: { width: 600, height: 360 },
 }
 
-export function formatDailyQQMarkdown(result: DailyResult, config: Config) {
+export function formatDailyQQMarkdown(result: DailyResult, config: Config, intro = '') {
   if (config.qqMarkdownMode === QQ_MARKDOWN_MODE.BLOCKQUOTE) {
-    return formatBlockquoteMarkdown(result, config)
+    return formatBlockquoteMarkdown(result, config, intro)
   }
 
-  return formatStructuredMarkdown(result, config)
+  return formatStructuredMarkdown(result, config, intro)
 }
 
-function formatStructuredMarkdown(result: DailyResult, config: Config) {
+function formatStructuredMarkdown(result: DailyResult, config: Config, intro: string) {
   const { mainText, sourceText } = splitDailyText(result.text)
   const contentLines = normalizeLines(stripMatchPrefix(mainText, config.matchPattern))
   const metaTable = buildMetaTable(result, config)
   const markdown = [
     '# 光遇国服每日任务',
     '',
-    DAILY_TASK_HINT_MARKDOWN,
+    formatDailyMessageIntroMarkdown(intro),
     '',
     ...metaTable,
     '',
@@ -78,13 +78,13 @@ function formatStructuredMarkdown(result: DailyResult, config: Config) {
   return compactBlankLines(markdown).join('\n')
 }
 
-function formatBlockquoteMarkdown(result: DailyResult, config: Config) {
+function formatBlockquoteMarkdown(result: DailyResult, config: Config, intro: string) {
   const lines = normalizeLines(result.text)
   const metaTable = buildMetaTable(result, config)
   const markdown = [
     '# 光遇国服每日任务',
     '',
-    DAILY_TASK_HINT_MARKDOWN,
+    formatDailyMessageIntroMarkdown(intro),
     '',
     ...metaTable,
     '',

@@ -52,13 +52,12 @@ export function apply(ctx: Context, config: ConfigType) {
   ctx.on('dispose', () => activePushService.stop())
   applyActivePushConsole(ctx, config, activePushService)
 
-  ctx.command(config.commandName, '📅✅ 访问微博获取光遇国服每日任务 ✨')
-    .alias('今日光遇国服任务')
-    .alias('今日国服任务')
-    .alias('今日国服')
-    .alias('today-sky-cn-request')
-    .alias('today-cn-request')
-    .alias('today-sky')
+  const dailyTaskCommand = ctx.command(config.commandName, '📅✅ 访问微博获取光遇国服每日任务 ✨')
+  for (const alias of normalizeConfigStringList(config.commandAliases)) {
+    dailyTaskCommand.alias(alias)
+  }
+
+  dailyTaskCommand
     .option('weibo', `--weibo <mode:string> 临时覆盖微博访问策略：${WEIBO_ACCESS_MODE_VALUES.join(' / ')}`)
     .action(async ({ session, options }) => {
       if (!session) return
@@ -124,6 +123,18 @@ function getQuotePrefix(session: Session, config: ConfigType) {
 
 function hasWeiboAccessModeOption(value: unknown) {
   return value !== undefined && value !== null && String(value).trim() !== ''
+}
+
+function normalizeConfigStringList(values: unknown): string[] {
+  const seen = new Set<string>()
+  const normalized: string[] = []
+  for (const value of Array.isArray(values) ? values : []) {
+    const entry = String(value || '').trim()
+    if (!entry || seen.has(entry)) continue
+    seen.add(entry)
+    normalized.push(entry)
+  }
+  return normalized
 }
 
 function parseWeiboAccessModeOption(value: unknown): WeiboAccessModeType | undefined {

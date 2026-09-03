@@ -3,7 +3,6 @@ import {} from 'koishi-plugin-puppeteer'
 import { existsSync, readFileSync } from 'fs'
 import type { Config } from '../config'
 import type { DailyResult } from '../weibo'
-import { DAILY_TASK_HINT_TEXT } from './common/hint'
 import { resolveRuntimeFontPath } from '../utils/fonts'
 import { bufferToDataUrl } from '../utils/image'
 
@@ -17,6 +16,7 @@ export async function renderDailyImage(
   ctx: Context,
   result: DailyResult,
   config: Config,
+  intro = '',
 ): Promise<RenderedDailyImage> {
   const page = await ctx.puppeteer.page()
 
@@ -26,7 +26,7 @@ export async function renderDailyImage(
       height: 900,
       deviceScaleFactor: 1,
     })
-    await page.setContent(generateDailyHtml(ctx, result, config))
+    await page.setContent(generateDailyHtml(ctx, result, config, intro))
     await page.waitForSelector('.container', { timeout: 10000 })
     await page.evaluate(() => document.fonts?.ready).catch(() => undefined)
 
@@ -57,7 +57,7 @@ export async function renderDailyImage(
   }
 }
 
-function generateDailyHtml(ctx: Context, result: DailyResult, config: Config) {
+function generateDailyHtml(ctx: Context, result: DailyResult, config: Config, intro: string) {
   const width = config.imageWidth
   const [mainText, sourceText] = splitSourceText(result.text)
   const fontFace = generateFontFace(ctx, config)
@@ -159,6 +159,7 @@ ${fontFace}
       font-size: 18px;
       font-weight: 888;
       line-height: 1.45;
+      white-space: pre-line;
       text-shadow:
         -1px -1px 0 rgba(255, 255, 255, 0.92),
         1px -1px 0 rgba(255, 255, 255, 0.92),
@@ -392,7 +393,7 @@ ${fontFace}
     <section class="header">
       <div class="kicker">✨ Sky Daily</div>
       <div class="title">光遇国服每日任务</div>
-      <div class="hint">${escapeHtml(DAILY_TASK_HINT_TEXT)}</div>
+      ${intro ? `<div class="hint">${escapeHtml(intro)}</div>` : ''}
       <div class="date">${escapeHtml(formatToday())}</div>
       <div class="author-line">
         <span class="author-label">来源博主</span>

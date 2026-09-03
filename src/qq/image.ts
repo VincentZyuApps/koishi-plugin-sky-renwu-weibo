@@ -1,4 +1,4 @@
-import { DAILY_TASK_HINT_MARKDOWN } from '../templates/common/hint'
+import { formatDailyMessageIntroMarkdown } from '../templates/common/intro'
 
 export interface ImageDimensions {
   width: number
@@ -16,11 +16,11 @@ interface FitImageByWidthOptions {
   fallback: ImageDimensions
 }
 
-export function formatPuppeteerImageMarkdown(imageUrl: string, width = 900, height = 1200) {
+export function formatPuppeteerImageMarkdown(imageUrl: string, width = 900, height = 1200, intro = '') {
   return [
     '# 光遇国服每日任务',
     '',
-    DAILY_TASK_HINT_MARKDOWN,
+    formatDailyMessageIntroMarkdown(intro),
     '',
     '## 微博图片',
     '',

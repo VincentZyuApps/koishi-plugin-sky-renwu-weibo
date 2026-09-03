@@ -80,6 +80,7 @@ export interface Config {
   // 📌 指令配置字段
   // ==================
   commandName: string
+  commandAliases: string[]
 
   // ==================
   // 🔑 微博请求配置字段
@@ -98,7 +99,12 @@ export interface Config {
   // ==================
   enableQuote: boolean
   enableWaitingHint: boolean
+  dailyTaskGeneralIntroHint: string
+  dailyTaskPassiveIntroHint: string
+  dailyTaskActiveIntroHint: string
   msgFormArr: Array<MsgFormType | MsgFormEntry>
+  restrictForwardPlatforms: boolean
+  forwardSupportedPlatforms: string[]
   strictOrderMode: boolean
 
   // ==================
@@ -151,6 +157,17 @@ export const Config: Schema<Config> = Schema.intersect([
     commandName: Schema.string()
       .default('今日光遇国服任务')
       .description('📌 触发命令名称。默认发送 <code>今日光遇国服任务</code> 获取当天国服每日任务。'),
+    commandAliases: Schema.array(Schema.string())
+      .role('table')
+      .default([
+        '今日光遇国服任务',
+        '今日国服任务',
+        '今日国服',
+        'today-sky-cn-request',
+        'today-cn-request',
+        'today-sky',
+      ])
+      .description('🏷️ 指令别名列表。每行一个别名；空白项会跳过，清空列表则不注册额外别名。'),
   }).description('📌 指令配置'),
 
   // ==================
@@ -207,6 +224,18 @@ export const Config: Schema<Config> = Schema.intersect([
     enableWaitingHint: Schema.boolean()
       .default(true)
       .description('⏳ 是否启用「获取并生成中.... 请耐心等待」提示消息。每日任务消息全部发送完成后会尝试撤回。'),
+    dailyTaskGeneralIntroHint: Schema.string()
+      .role('textarea', { rows: [2, 3] })
+      .default('📅给主人送上今日光遇国服任务喵✨\n💡 tip: 如果看到的不是今天的每日任务，可能是博主还没更新，可以稍等片刻后再试。⏳')
+      .description('💌 通用文字提示。每种已启用发送形式都会先展示此内容；留空时跳过。'),
+    dailyTaskPassiveIntroHint: Schema.string()
+      .role('textarea', { rows: [2, 3] })
+      .default('🔎我去，主人的自律这么厉害，居然还记得把我 每日任务 探测出来咯(✨')
+      .description('💬 被动指令触发查询文字提示。普通用户执行查询指令时，在通用文字提示后展示；留空时跳过。'),
+    dailyTaskActiveIntroHint: Schema.string()
+      .role('textarea', { rows: [2, 3] })
+      .default('📣按照主人定时计划按时给主人送上今日的 每日任务 喵⏰')
+      .description('📣 主动推送文字提示。Cron、Console 立即推送和管理员测试指令都会在通用文字提示后展示；留空时跳过。'),
     msgFormArr: Schema.array(Schema.object({
       mode: Schema.union([
         Schema.const(MSG_FORM.TEXT_WITH_IMAGE).description(`【📝 ${MSG_FORM.TEXT_WITH_IMAGE}】先文后图 (一条消息内先发送微博长文本，再发送全部图片)`),
@@ -232,15 +261,22 @@ export const Config: Schema<Config> = Schema.intersect([
         { mode: MSG_FORM.QQ_MARKDOWN, enabled: true },
       ])
       .description([
-        '每日任务发送形式表格，可调整顺序，可启用 / 禁用',
-        `【📝 ${MSG_FORM.TEXT_WITH_IMAGE}】先文后图 (一条消息内先发送微博长文本，再发送全部图片)`,
-        `【🖼️ ${MSG_FORM.IMAGE_WITH_TEXT}】先图后文 (一条消息内先发送全部图片，再发送微博长文本)`,
-        `【🔤 ${MSG_FORM.TEXT}】纯文字 (只发送微博长文本、数据来源和原文链接)`,
-        `【📦 ${MSG_FORM.FORWARD}】图文合并转发 (把文字和图片打包进 OneBot 合并转发，只适合 OneBot 平台)`,
-        `【🎨 ${MSG_FORM.PUPPETEER_IMAGE}】Puppeteer 卡片图 (把文字和微博图片排版成圆角卡片图，适合任何平台)`,
-        `【🤖 ${MSG_FORM.QQ_MARKDOWN}】QQ Markdown (发送 QQ 官方 Bot Markdown 正文消息，只有 QQ 官方 Bot 平台能用)`,
-        '⚠️ 如果启用了多个相同发送形式，只有第一个会生效',
+        '📋 每日任务发送形式表格，可调整顺序，可启用 / 禁用；<b>被动指令触发</b>与<b>主动 Cron 推送</b>都会按此表执行。',
+        `<code>【📝 ${MSG_FORM.TEXT_WITH_IMAGE}】</code>先文后图 (一条消息内先发送微博长文本，再发送全部图片)`,
+        `<code>【🖼️ ${MSG_FORM.IMAGE_WITH_TEXT}】</code>先图后文 (一条消息内先发送全部图片，再发送微博长文本)`,
+        `<code>【🔤 ${MSG_FORM.TEXT}】</code>纯文字 (只发送微博长文本、数据来源和原文链接)`,
+        `<code>【📦 ${MSG_FORM.FORWARD}】</code>图文合并转发 (把文字和图片打包进合并转发；是否限制平台由下方配置决定)`,
+        `<code>【🎨 ${MSG_FORM.PUPPETEER_IMAGE}】</code>Puppeteer 卡片图 (把文字和微博图片排版成圆角卡片图，适合任何平台)`,
+        `<code>【🤖 ${MSG_FORM.QQ_MARKDOWN}】</code>QQ Markdown (发送 QQ 官方 Bot Markdown 正文消息，只有 QQ 官方 Bot 平台能用)`,
+        '🔁 相同发送形式可以重复添加；每个已启用条目都会按表格顺序独立发送一次。',
       ].join('<br/>')),
+    restrictForwardPlatforms: Schema.boolean()
+      .default(true)
+      .description('📦 是否按下方平台列表限制 forward 图文合并转发。开启时只有列表内平台会发送；关闭时所有平台都会尝试发送。'),
+    forwardSupportedPlatforms: Schema.array(Schema.string())
+      .role('table')
+      .default(['onebot', 'red', 'discord'])
+      .description('📦 forward 图文合并转发允许的平台列表。仅在开启平台限制时生效；每行一个 Koishi platform 标识，清空列表表示不向任何平台发送 forward。'),
     strictOrderMode: Schema.boolean()
       .experimental()
       .default(true)

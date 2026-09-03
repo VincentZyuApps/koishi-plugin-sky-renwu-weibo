@@ -138,16 +138,18 @@ scripts/
 
 插件配置项 `msgFormArr` 是表格形式：每一行选择一种发送形式，并通过 `enabled` 控制是否启用。可以调整行顺序，插件会按表格顺序发送；`strictOrderMode=false` 时会并行发送，发送顺序不保证。
 
+每种已启用发送形式都会在内容最前加入 `dailyTaskGeneralIntroHint`，再加入被动指令提示 `dailyTaskPassiveIntroHint`。两个配置都可留空；相同发送形式可以重复添加，表格中的每个启用条目都会独立发送一次。
+
 - 📄➕🖼️ `text-with-image`：先文后图，一条消息内先发送微博长文本，再发送全部图片
 - 🖼️➕📄 `image-with-text`：先图后文，一条消息内先发送全部图片，再发送微博长文本
 - 📄 `text`：纯文字，只发送微博长文本、数据来源和原文链接
-- 📦 `forward`：图文合并转发，把文字和图片打包进合并转发；仅支持 `onebot`、`red` 和 `discord` 平台
+- 📦 `forward`：图文合并转发，把文字和图片打包进合并转发；是否限制平台由 `restrictForwardPlatforms` 和 `forwardSupportedPlatforms` 决定
 - 🖼️ `puppeteer-image`：Puppeteer 卡片图，把文字和微博图片排版成一张圆角卡片图
 - 🤖 `qq-markdown`：QQ 官方 Bot Markdown 正文消息，只有 QQ 官方 Bot 平台能用；操作按钮行为由 `qqMarkdownButtonMode` 控制，但 `qqMarkdownButtonMode` 只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为
 
 默认启用 `forward`、`puppeteer-image` 和 `qq-markdown`。
 
-`forward` 模式仅支持 `onebot`、`red` 和 `discord` 平台；其他平台即使勾选也会直接跳过。`puppeteer-image` 模式需要启用 Koishi 的 `puppeteer` 服务；未启用时插件会跳过该发送形式。`append-puppeteer-image` 按钮行为还需要根据配置模式启用 Koishi `assets` 或 `server` 服务，用于生成公网 `http(s)` 图片地址。`standalone` 和 `append-qq-markdown` 不使用这套图片 URL 生成逻辑。
+默认开启 `restrictForwardPlatforms`，因此 `forward` 仅向 `forwardSupportedPlatforms` 中的平台发送，默认值为 `onebot`、`red`、`discord`。关闭开关后，所有平台都会尝试发送，由适配器决定是否支持；开关开启但列表为空时，所有平台都会跳过 `forward`。`puppeteer-image` 模式需要启用 Koishi 的 `puppeteer` 服务；未启用时插件会跳过该发送形式。`append-puppeteer-image` 按钮行为还需要根据配置模式启用 Koishi `assets` 或 `server` 服务，用于生成公网 `http(s)` 图片地址。`standalone` 和 `append-qq-markdown` 不使用这套图片 URL 生成逻辑。
 
 QQ 官方 Bot 平台使用 `puppeteer-image` 或 `append-puppeteer-image` 时，建议把 Puppeteer 卡片图输出格式改为 `jpeg` 或 `webp`，并适当调低 `screenshotQuality`。如果继续使用默认 PNG，微博图片较多时生成的长图可能过大，导致 QQ 平台不接受或不渲染图片。
 
@@ -158,6 +160,8 @@ QQ 官方 Bot 平台使用 `puppeteer-image` 或 `append-puppeteer-image` 时，
 默认 Cron 为 `0 1,7,13,19 * * *`，表示每天 01:00、07:00、13:00、19:00 触发。时间由 `activePushTimezoneGmtOffset` 的 GMT 偏移解释，默认 `8` 即 GMT+8；只支持整数偏移，不处理夏令时。
 
 主动推送默认关闭，目标列表默认空。`activePushUseCache=false` 时，每次定时或手动测试都绕过 `cacheMinutes` 重新请求微博；开启后才会复用现有缓存。
+
+Cron、Console 立即推送和管理员测试指令都属于主动场景。每种已启用发送形式会在内容最前加入 `dailyTaskGeneralIntroHint`，再加入 `dailyTaskActiveIntroHint`；独立 QQ JSON 按钮保持原有内容且只发送一次，不包含这些提示。
 
 ### 🎯 目标填写
 
@@ -196,6 +200,7 @@ QQ 官方 Bot 平台使用 `puppeteer-image` 或 `append-puppeteer-image` 时，
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `commandName` | `string` | `"今日光遇国服任务"` | 触发命令名称 |
+| `commandAliases` | `string[]` | 现有 6 个别名 | 指令别名列表；每行一个，空白项跳过，清空列表则不注册额外别名 |
 
 ### 🔑 微博请求配置
 
@@ -216,7 +221,12 @@ QQ 官方 Bot 平台使用 `puppeteer-image` 或 `append-puppeteer-image` 时，
 |---|---|---|---|
 | `enableQuote` | `boolean` | `true` | bot 发送普通消息时是否引用触发指令；`forward` 合并转发模式不会附带引用 |
 | `enableWaitingHint` | `boolean` | `true` | 是否显示“获取并生成中.... 请耐心等待”等待提示；所有发送形式完成后会尝试撤回 |
-| `msgFormArr` | `{ mode, enabled }[]` | 见说明 | 每日任务发送形式表格，可调整顺序，可启用 / 禁用；默认启用 `forward`、`puppeteer-image` 和 `qq-markdown` |
+| `dailyTaskGeneralIntroHint` | `string` | `"给主人送上今日光遇国服任务喵"` + 原每日任务提醒 | 每种已启用发送形式最前的通用文字提示；默认值保留原有提醒，留空时跳过 |
+| `dailyTaskPassiveIntroHint` | `string` | `"主人这么厉害 还记得手动指令查询 每日任务 喵"` | 普通用户查询指令时接在通用提示后的文字；留空时跳过 |
+| `dailyTaskActiveIntroHint` | `string` | `"按照主人定时计划按时给主人送上今日 每日任务喵"` | Cron、Console 与管理员测试指令接在通用提示后的文字；留空时跳过 |
+| `msgFormArr` | `{ mode, enabled }[]` | 见说明 | 每日任务发送形式表格，可调整顺序、启用 / 禁用，也可重复添加相同模式；默认启用 `forward`、`puppeteer-image` 和 `qq-markdown` |
+| `restrictForwardPlatforms` | `boolean` | `true` | 是否按下方列表限制 `forward`；关闭时所有平台都会尝试发送 |
+| `forwardSupportedPlatforms` | `string[]` | `["onebot", "red", "discord"]` | `forward` 允许的平台列表；仅在限制开启时生效，空列表表示不向任何平台发送 `forward` |
 | `strictOrderMode` | `boolean` | `true` | 是否严格按照表格顺序串行发送；关闭后会并行发送，顺序不保证 |
 
 ### 📣 主动消息推送

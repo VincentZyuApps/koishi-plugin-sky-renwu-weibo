@@ -23,6 +23,20 @@ export interface ActivePushResult {
   targets: ActivePushTargetResult[]
 }
 
+export type ActivePushProgressPhase = 'validating' | 'fetching' | 'sending' | 'completed'
+
+export interface ActivePushProgress {
+  phase: ActivePushProgressPhase
+  configuredTargetCount: number
+  availableTargetCount: number
+  completedTargetCount: number
+  currentTarget?: Pick<ActivePushTargetResult, 'note' | 'platform' | 'selfId' | 'channelId'>
+  targets: ActivePushTargetResult[]
+  message: string
+}
+
+export type ActivePushProgressReporter = (progress: ActivePushProgress) => void | Promise<void>
+
 type GetDailyResult = (config: Config, useCache: boolean) => Promise<DailyResult>
 
 interface ResolvedTarget extends ActiveDeliveryTarget {
@@ -85,19 +99,52 @@ export class ActivePushService {
     }
   }
 
-  async trigger(trigger: ActivePushTrigger, targets?: ActivePushTarget[]): Promise<ActivePushResult> {
+  async trigger(
+    trigger: ActivePushTrigger,
+    targets?: ActivePushTarget[],
+    reportProgress?: ActivePushProgressReporter,
+  ): Promise<ActivePushResult> {
     const configuredTargets = this.getConfiguredTargets(targets)
+    const targetResults: ActivePushTargetResult[] = []
+    let availableTargetCount = 0
+    let completedTargetCount = 0
+    const report = async (
+      phase: ActivePushProgressPhase,
+      message: string,
+      currentTarget?: ActivePushProgress['currentTarget'],
+    ) => {
+      if (!reportProgress) return
+      try {
+        await reportProgress({
+          phase,
+          configuredTargetCount: configuredTargets.length,
+          availableTargetCount,
+          completedTargetCount,
+          currentTarget,
+          targets: [...targetResults],
+          message,
+        })
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error)
+        logInfo(this.ctx, this.config, '', `主动推送进度上报失败：${detail}`)
+      }
+    }
+
+    await report('validating', '正在校验主动推送目标。')
     if (!configuredTargets.length) {
       const message = '没有启用的主动推送目标，跳过本次推送。'
       logInfo(this.ctx, this.config, message)
+      await report('completed', message)
       return { ok: false, trigger, message, targets: [] }
     }
 
-    const targetResults: ActivePushTargetResult[] = []
     const resolvedTargets = this.resolveTargets(configuredTargets, targetResults)
+    availableTargetCount = resolvedTargets.length
+    await report('fetching', '正在获取今日每日任务。')
     if (!resolvedTargets.length) {
       const message = '没有可用的目标 Bot，跳过本次推送。'
       logInfo(this.ctx, this.config, message)
+      await report('completed', message)
       return { ok: false, trigger, message, targets: targetResults }
     }
 
@@ -111,11 +158,19 @@ export class ActivePushService {
       if (this.config.verboseSessionLog) {
         await this.notifyFetchFailure(resolvedTargets, message)
       }
+      await report('completed', message)
       return { ok: false, trigger, message, targets: targetResults }
     }
 
     logInfo(this.ctx, this.config, '', `主动推送开始: trigger=${trigger}, targets=${resolvedTargets.length}, useCache=${this.config.activePushUseCache}`)
     for (const target of resolvedTargets) {
+      const currentTarget = {
+        note: target.label,
+        platform: target.bot.platform,
+        selfId: target.bot.selfId,
+        channelId: target.channelId,
+      }
+      await report('sending', `正在向 ${target.label} 推送每日任务。`, currentTarget)
       try {
         const result = await sendDailyResultToTarget(this.ctx, target, this.config, dailyResult)
         const message = result.failures.length
@@ -146,12 +201,15 @@ export class ActivePushService {
         })
         logInfo(this.ctx, this.config, '', `主动推送失败 -> ${target.label}: ${message}`)
       }
+      completedTargetCount += 1
+      await report('sending', `已完成 ${completedTargetCount}/${availableTargetCount} 个可用 Bot 目标。`, currentTarget)
     }
 
     const successCount = targetResults.filter((item) => item.ok).length
     const firstFailure = targetResults.find((item) => !item.ok)
     const message = `主动推送完成：${successCount}/${targetResults.length} 个 Bot 目标成功。${firstFailure ? ` 首个失败：${firstFailure.note} - ${firstFailure.message}` : ''}`
     logInfo(this.ctx, this.config, successCount > 0 ? `✅ ${message}` : `⚠️ ${message}`)
+    await report('completed', message)
     return {
       ok: successCount > 0,
       trigger,

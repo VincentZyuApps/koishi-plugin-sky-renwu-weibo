@@ -45,6 +45,7 @@ export async function sendQQMarkdownMode(
   config: Config,
   result: DailyResult,
   buttonModes: QQMarkdownButtonMode[],
+  intro = '',
 ) {
   if (session.platform !== 'qq') {
     await notifyQQButtonSkip(ctx, session, config, 'QQ Markdown 正文消息只能在 QQ 官方 Bot 平台使用。')
@@ -57,7 +58,7 @@ export async function sendQQMarkdownMode(
   logInfo(ctx, config, '', `发送 QQ Markdown 正文消息，按钮挂载: ${keyboard ? 'yes' : 'no'}`)
 
   await sendWithModeGuard(ctx, config, 'qq-markdown', () =>
-    sendQQMarkdown(session, formatDailyQQMarkdown(result, config), keyboard, true),
+    sendQQMarkdown(session, formatDailyQQMarkdown(result, config, intro), keyboard, true),
   )
 }
 
@@ -66,6 +67,7 @@ export async function sendQQPuppeteerImageWithButtons(
   session: Session,
   config: Config,
   renderedImage: RenderedDailyImage,
+  intro = '',
 ) {
   if (session.platform !== 'qq') {
     await notifyQQButtonSkip(ctx, session, config, 'Puppeteer 卡片图按钮只能在 QQ 官方 Bot 平台使用。')
@@ -93,7 +95,7 @@ export async function sendQQPuppeteerImageWithButtons(
 
   const dimensions = fitImageDimensionsByWidth(renderedImage, QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE)
   logInfo(ctx, config, '', `发送 QQ Markdown Puppeteer 卡片图并附带按钮: rawSize=${renderedImage.width}x${renderedImage.height}, markdownSize=${dimensions.width}x${dimensions.height}`)
-  await sendQQMarkdown(session, formatPuppeteerImageMarkdown(imageUrl, dimensions.width, dimensions.height), buildDailyKeyboard(config), true)
+  await sendQQMarkdown(session, formatPuppeteerImageMarkdown(imageUrl, dimensions.width, dimensions.height, intro), buildDailyKeyboard(config), true)
 }
 
 export async function sendQQPuppeteerImageWithButtonsToTarget(
@@ -102,11 +104,12 @@ export async function sendQQPuppeteerImageWithButtonsToTarget(
   channelId: string,
   config: Config,
   renderedImage: RenderedDailyImage,
+  intro = '',
 ) {
   const imageUrl = await resolveQQPuppeteerImageUrl(ctx, config, renderedImage.base64)
   const dimensions = fitImageDimensionsByWidth(renderedImage, QQ_MARKDOWN_PUPPETEER_IMAGE_SIZE)
   logInfo(ctx, config, '', `主动发送 QQ Markdown Puppeteer 卡片图并附带按钮: rawSize=${renderedImage.width}x${renderedImage.height}, markdownSize=${dimensions.width}x${dimensions.height}`)
-  return sendQQMarkdownToTarget(bot, channelId, formatPuppeteerImageMarkdown(imageUrl, dimensions.width, dimensions.height), buildDailyKeyboard(config))
+  return sendQQMarkdownToTarget(bot, channelId, formatPuppeteerImageMarkdown(imageUrl, dimensions.width, dimensions.height, intro), buildDailyKeyboard(config))
 }
 
 async function resolveQQPuppeteerImageUrl(ctx: Context, config: Config, imageBase64: string) {

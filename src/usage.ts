@@ -47,6 +47,7 @@ export const usage = `
 <summary style="${summaryStyle}"><b style="color: #ff8a00;">🧩 可选依赖与 QQ 图片体积提醒</b></summary>
 <div style="${detailsBodyStyle}">
 <p><b>🖼️ puppeteer 是可选服务：</b>只有启用 <code>puppeteer-image</code> 卡片图发送形式时才需要，用于把每日任务渲染成图片。</p>
+<p><b>📦 forward 平台限制：</b>开启 <code>restrictForwardPlatforms</code> 时，只有 <code>forwardSupportedPlatforms</code> 列表中的平台会发送图文合并转发；默认允许 onebot、red、discord。关闭开关后所有平台都会尝试发送；开启且列表为空时全部跳过。</p>
 <p><b>🌐 assets / server 是可选服务：</b>只有启用 QQ Markdown 按钮行为 <code>append-puppeteer-image</code> 时才会按配置模式使用，用于把 Puppeteer 卡片图转换成 QQ 官方 Bot 可访问的公网图片 URL。</p>
 <p><b>⚠️ QQ JSON 按钮限制：</b><code>qqMarkdownButtonMode</code> 只对 QQ 官方 Bot 群聊生效，不影响 QQ 私信和其他平台的任何行为。</p>
 <p><b>⚠️ QQ 平台图片体积提醒：</b>在 QQ 官方 Bot 平台使用 <code>puppeteer-image</code> 或 <code>append-puppeteer-image</code> 时，建议把 <code>imageType</code> 改为 <code>jpeg</code> 或 <code>webp</code>，并适当调低 <code>screenshotQuality</code>；默认 PNG 长图可能过大，导致 QQ 平台不接受或不渲染图片。</p>
@@ -59,6 +60,7 @@ export const usage = `
 <details style="${detailsStyle}">
 <summary style="${summaryStyle}"><b style="color: #2f855a;">📣 主动消息推送与 Console 测试</b></summary>
 <div style="${detailsBodyStyle}">
+<p><b>💌 场景文字提示：</b>每种已启用发送形式都会先展示 <code>dailyTaskGeneralIntroHint</code>，再展示场景提示。普通用户查询使用 <code>dailyTaskPassiveIntroHint</code>；Cron、Console 立即推送和管理员测试指令使用 <code>dailyTaskActiveIntroHint</code>。留空时跳过对应行；独立 QQ JSON 按钮保持原有内容，不包含这些提示。</p>
 <p><b>⏰ Cron 定时推送：</b>启用 <code>enableActivePush</code> 后，插件会按 <code>activePushCron</code> 抓取当天任务，并向 <code>activePushTargets</code> 中所有启用目标主动发送。默认表达式 <code>0 1,7,13,19 * * *</code> 表示每天 01:00、07:00、13:00、19:00。</p>
 <p><b>🌍 GMT 偏移：</b><code>activePushTimezoneGmtOffset</code> 默认 <code>8</code>，即 GMT+8；只支持整数偏移，不处理夏令时。</p>
 <p><b>🧊 缓存：</b><code>activePushUseCache</code> 默认关闭，因此每次 Cron 或 Console 测试都会重新请求微博；开启后才遵循现有 <code>cacheMinutes</code>。</p>

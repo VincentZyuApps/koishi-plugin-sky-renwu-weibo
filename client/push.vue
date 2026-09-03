@@ -43,7 +43,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="target in displayTargets" :key="targetKey(target)">
+          <tr v-for="(target, index) in displayTargets" :key="targetKey(target, index)">
             <td>{{ target.note }}</td>
             <td>{{ target.platform }}</td>
             <td>{{ target.selfId }}</td>
@@ -65,21 +65,44 @@
       <span>此按钮不受 Cron 总开关影响，但需要管理员权限与二次确认。</span>
     </div>
 
-    <k-comment v-if="result" :type="result.ok ? 'success' : 'error'">
-      <strong>{{ result.ok ? '推送完成' : '推送未完成' }}</strong>
-      <p>{{ result.message }}</p>
-      <ul v-if="result.targets.length">
-        <li v-for="target in result.targets" :key="targetResultKey(target)">
+    <k-comment v-if="sending && progress" type="primary">
+      <strong>{{ progressTitle }}</strong>
+      <p>{{ progress.message }}</p>
+      <div class="active-progress-summary">
+        <span>配置 <strong>{{ progress.configuredTargetCount }}</strong> 个</span>
+        <span>可用 <strong>{{ progress.availableTargetCount }}</strong> 个</span>
+        <span>进度 <strong>{{ progress.completedTargetCount }} / {{ progress.availableTargetCount }}</strong></span>
+      </div>
+      <p v-if="progress.currentTarget" class="active-current-target">
+        当前目标：{{ formatTarget(progress.currentTarget) }}
+      </p>
+      <ul v-if="progress.targets.length">
+        <li v-for="(target, index) in progress.targets" :key="targetResultKey(target, index)">
           {{ target.ok ? '成功' : '失败' }}：{{ target.note }} - {{ target.message }}
         </li>
       </ul>
+    </k-comment>
+
+    <k-comment v-else-if="result" :type="result.ok ? 'success' : 'error'">
+      <strong>{{ result.ok ? '推送完成' : '推送未完成' }}</strong>
+      <p>{{ result.message }}</p>
+      <ul v-if="result.targets.length">
+        <li v-for="(target, index) in result.targets" :key="targetResultKey(target, index)">
+          {{ target.ok ? '成功' : '失败' }}：{{ target.note }} - {{ target.message }}
+        </li>
+      </ul>
+    </k-comment>
+
+    <k-comment v-else type="primary">
+      <strong>等待手动测试</strong>
+      <p>此区域不会自动推送。点击上方立即推送可向所有启用目标发送一次每日任务。</p>
     </k-comment>
   </section>
 </template>
 
 <script lang="ts" setup>
-import { send } from '@koishijs/client'
-import { computed, inject, onMounted, ref } from 'vue'
+import { receive, send } from '@koishijs/client'
+import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 
 interface ActiveStatus {
   enabled: boolean
@@ -118,11 +141,29 @@ interface ActiveResult {
   }>
 }
 
+type ActivePushProgressPhase = 'validating' | 'fetching' | 'sending' | 'completed'
+
+interface ActivePushProgress {
+  phase: ActivePushProgressPhase
+  configuredTargetCount: number
+  availableTargetCount: number
+  completedTargetCount: number
+  currentTarget?: Pick<ActiveResult['targets'][number], 'note' | 'platform' | 'selfId' | 'channelId'>
+  targets: ActiveResult['targets']
+  message: string
+}
+
+interface ActivePushProgressPayload extends ActivePushProgress {
+  runId: string
+}
+
 const local: any = inject('manager.settings.local')
 const status = ref<ActiveStatus>()
 const result = ref<ActiveResult>()
 const loading = ref(false)
 const sending = ref(false)
+const progress = ref<ActivePushProgress>()
+const currentRunId = ref('')
 
 const isCurrentPlugin = computed(() => {
   const name = String(local?.value?.name || '')
@@ -143,12 +184,30 @@ const displayTargets = computed<ActivePushTarget[]>(() => {
 
 const enabledTargetCount = computed(() => displayTargets.value.filter((target) => target.enabled).length)
 
-function targetKey(target: ActivePushTarget) {
-  return `${target.note}:${target.platform}:${target.selfId}:${target.channelId}`
+const progressTitle = computed(() => {
+  if (!progress.value) return '正在准备推送'
+  if (progress.value.phase === 'validating') return '正在校验推送目标'
+  if (progress.value.phase === 'fetching') return '正在获取每日任务'
+  if (progress.value.phase === 'sending') return `正在推送 ${progress.value.completedTargetCount} / ${progress.value.availableTargetCount}`
+  return '正在整理推送结果'
+})
+
+function targetKey(target: ActivePushTarget, index: number) {
+  return `${index}:${target.note}:${target.platform}:${target.selfId}:${target.channelId}`
 }
 
-function targetResultKey(target: ActiveResult['targets'][number]) {
-  return `${target.note}:${target.platform}:${target.selfId}:${target.channelId}`
+function targetResultKey(target: ActiveResult['targets'][number], index: number) {
+  return `${index}:${target.note}:${target.platform}:${target.selfId}:${target.channelId}`
+}
+
+function formatTarget(target: Pick<ActiveResult['targets'][number], 'note' | 'platform' | 'selfId' | 'channelId'>) {
+  const bot = target.selfId ? `${target.platform}/${target.selfId}` : target.platform
+  return `${target.note} (${bot} -> ${target.channelId})`
+}
+
+function createRunId() {
+  if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID()
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 async function refresh() {
@@ -165,8 +224,18 @@ async function trigger() {
 
   sending.value = true
   result.value = undefined
+  const runId = createRunId()
+  currentRunId.value = runId
+  progress.value = {
+    phase: 'validating',
+    configuredTargetCount: enabledTargetCount.value,
+    availableTargetCount: 0,
+    completedTargetCount: 0,
+    targets: [],
+    message: '正在校验当前表格中的启用目标。',
+  }
   try {
-    result.value = await send('sky-renwu-weibo/active-push' as any, displayTargets.value)
+    result.value = await send('sky-renwu-weibo/active-push' as any, displayTargets.value, runId)
   } catch (error) {
     result.value = {
       ok: false,
@@ -181,7 +250,15 @@ async function trigger() {
 }
 
 onMounted(() => {
+  receive<ActivePushProgressPayload>('sky-renwu-weibo/active-push-progress', (payload) => {
+    if (payload?.runId !== currentRunId.value) return
+    progress.value = payload
+  })
   void refresh()
+})
+
+onBeforeUnmount(() => {
+  receive('sky-renwu-weibo/active-push-progress', () => undefined)
 })
 </script>
 
@@ -287,5 +364,24 @@ onMounted(() => {
 .active-panel ul {
   margin: 8px 0 0;
   padding-left: 20px;
+}
+
+.active-progress-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 8px;
+  color: var(--k-color-muted);
+  font-size: 12px;
+}
+
+.active-progress-summary strong {
+  color: var(--k-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.active-current-target {
+  margin-top: 8px !important;
+  overflow-wrap: anywhere;
 }
 </style>

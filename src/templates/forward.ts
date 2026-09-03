@@ -5,10 +5,13 @@ import { formatDailyText } from './text'
 export function formatDailyForward(
   result: DailyResult,
   botSelf?: { userId?: string; username?: string; name?: string },
+  intro = '',
 ) {
   const botId = botSelf?.userId
   const botName = getBotName(botSelf)
-  const textNode = result.text ? addForwardNode(botId, botName, formatDailyText(result)) : ''
+  const textNode = result.text || intro
+    ? addForwardNode(botId, botName, formatDailyText(result, intro))
+    : ''
   const imageNodes = result.imageBuffers
     .map((image) => addForwardNode(botId, botName, `<img src="${bufferToDataUrl(image)}"/>`))
     .join('\n')
