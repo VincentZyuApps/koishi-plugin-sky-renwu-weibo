@@ -207,17 +207,16 @@ function appendSourceSection(markdown: string[], sourceText: string, sourceUrl?:
 }
 
 function appendImageSection(markdown: string[], result: DailyResult) {
-  const urls = result.imageUrls.filter(Boolean)
-  if (!urls.length) return
+  const images = result.downloadedImages
+  if (!images.length) return
 
   markdown.push('', '## 微博图片')
-  const canUseIndexedBuffers = urls.length === result.imageBuffers.length
-  for (const [index, url] of urls.entries()) {
+  for (const image of images) {
     const dimensions = fitImageDimensions(
-      canUseIndexedBuffers ? getImageDimensions(result.imageBuffers[index]) : null,
+      getImageDimensions(image.buffer),
       QQ_MARKDOWN_IMAGE_SIZE,
     )
-    markdown.push(`![微博图片 ${index + 1} #${dimensions.width}px #${dimensions.height}px](${url})`)
+    markdown.push(`![微博图片 ${image.index + 1}/${result.imageUrls.length} #${dimensions.width}px #${dimensions.height}px](${image.url})`)
   }
 }
 
@@ -226,12 +225,15 @@ function compactBlankLines(lines: string[]) {
 }
 
 function buildMetaTable(result: DailyResult, config: Config) {
+  const imageCount = result.imageUrls.length
+    ? `${result.downloadedImages.length}/${result.imageUrls.length} 张`
+    : `${result.imageBuffers.length} 张`
   return [
     '| Key | Value |',
     '| --- | --- |',
     `| 数据来源 | 微博 @${escapeTableCell(config.authorName)} |`,
     `| 生成时间 | ${formatNow()} |`,
-    `| 微博图片 | ${result.imageUrls.length || result.imageBuffers.length} 张 |`,
+    `| 微博图片 | ${imageCount} |`,
   ]
 }
 

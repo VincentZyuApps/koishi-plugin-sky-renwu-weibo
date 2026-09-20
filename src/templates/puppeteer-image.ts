@@ -61,10 +61,10 @@ function generateDailyHtml(ctx: Context, result: DailyResult, config: Config, in
   const width = config.imageWidth
   const [mainText, sourceText] = splitSourceText(result.text)
   const fontFace = generateFontFace(ctx, config)
-  const imageCount = result.imageBuffers.length
-  const imageHtml = result.imageBuffers.map((image, index) => `
+  const imageCount = result.downloadedImages.length
+  const imageHtml = result.downloadedImages.map((image) => `
     <div class="image-frame">
-      <img src="${bufferToDataUrl(image)}" alt="daily-${index + 1}">
+      <img src="${bufferToDataUrl(image.buffer)}" alt="daily-${image.index + 1}">
     </div>
   `).join('')
 
@@ -402,7 +402,7 @@ ${fontFace}
       <div class="meta-row">
         <div class="meta-item">
           <span class="meta-label">微博图片数量</span>
-          <span class="meta-value">${imageCount} 张</span>
+          <span class="meta-value">${imageCount}/${result.imageUrls.length} 张</span>
         </div>
         <div class="meta-item">
           <span class="meta-label">发送形式</span>

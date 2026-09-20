@@ -24,6 +24,7 @@ const WEIBO_ACCESS_MODE_VALUES = Object.values(WEIBO_ACCESS_MODE) as WeiboAccess
 
 export function apply(ctx: Context, config: ConfigType) {
   const cache: Partial<Record<WeiboAccessModeType, DailyResult>> = {}
+  const inFlight: Partial<Record<WeiboAccessModeType, Promise<DailyResult>>> = {}
 
   logInfo(ctx, config, '✅ 插件已启动', `插件启动: command=${config.commandName}, uid=${config.uid}, author=${config.authorName}`)
   ensureRuntimeFonts(ctx, config).catch((error) => {
@@ -40,11 +41,24 @@ export function apply(ctx: Context, config: ConfigType) {
       return cached
     }
 
-    logInfo(ctx, fetchConfig, '', `缓存未命中，开始请求微博接口: mode=${cacheKey}`)
-    const result = await fetchChineseServerDaily(ctx, fetchConfig)
-    cache[cacheKey] = result
-    logInfo(ctx, fetchConfig, '', `微博接口请求完成并写入缓存: mode=${cacheKey}, fetchedAt=${result.fetchedAt}`)
-    return result
+    const pending = inFlight[cacheKey]
+    if (pending) {
+      logInfo(ctx, fetchConfig, '', `合并到进行中的微博请求: mode=${cacheKey}, useCache=${useCache}`)
+      return pending
+    }
+
+    logInfo(ctx, fetchConfig, '', `缓存未命中，开始请求微博接口: mode=${cacheKey}, useCache=${useCache}`)
+    const request = fetchChineseServerDaily(ctx, fetchConfig)
+      .then((result) => {
+        cache[cacheKey] = result
+        logInfo(ctx, fetchConfig, '', `微博接口请求完成并写入缓存: mode=${cacheKey}, fetchedAt=${result.fetchedAt}`)
+        return result
+      })
+      .finally(() => {
+        delete inFlight[cacheKey]
+      })
+    inFlight[cacheKey] = request
+    return request
   }
 
   const activePushService = new ActivePushService(ctx, config, getDailyResult)
@@ -87,7 +101,7 @@ export function apply(ctx: Context, config: ConfigType) {
         }
 
         const result = await getDailyResult(effectiveConfig)
-        logInfo(ctx, effectiveConfig, '', `每日任务获取完成: mode=${effectiveConfig.weiboAccessMode}, textLength=${result.text.length}, imageUrls=${result.imageUrls.length}, imageBuffers=${result.imageBuffers.length}`)
+        logInfo(ctx, effectiveConfig, '', `每日任务获取完成: mode=${effectiveConfig.weiboAccessMode}, textLength=${result.text.length}, imageUrls=${result.imageUrls.length}, imageBuffers=${result.imageBuffers.length}, imageFailures=${result.imageFailures.length}`)
         await sendDailyResult(ctx, session, effectiveConfig, result)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)

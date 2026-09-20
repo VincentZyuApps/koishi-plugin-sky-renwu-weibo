@@ -64,6 +64,7 @@ export const usage = `
 <p><b>⏰ Cron 定时推送：</b>启用 <code>enableActivePush</code> 后，插件会按 <code>activePushCron</code> 抓取当天任务，并向 <code>activePushTargets</code> 中所有启用目标主动发送。默认表达式 <code>0 1,7,13,19 * * *</code> 表示每天 01:00、07:00、13:00、19:00。</p>
 <p><b>🌍 GMT 偏移：</b><code>activePushTimezoneGmtOffset</code> 默认 <code>8</code>，即 GMT+8；只支持整数偏移，不处理夏令时。</p>
 <p><b>🧊 缓存：</b><code>activePushUseCache</code> 默认关闭，因此每次 Cron 或 Console 测试都会重新请求微博；开启后才遵循现有 <code>cacheMinutes</code>。</p>
+<p><b>🖼️ 图片下载：</b>图片按 <code>imageDownloadConcurrency</code> 限并发下载，并按 <code>imageDownloadTimeout</code>、<code>imageDownloadRetryCount</code>、<code>imageDownloadRetryDelay</code> 与 <code>imageDownloadMaxWait</code> 控制重试和总等待。所有发送形式只使用同一批成功图片，并显示成功数/总数；<code>incompleteImageBehavior</code> 可选择发送成功子集、强制文字回执或跳过任务内容。</p>
 <p><b>🎯 目标表：</b>每行配置备注、platform、selfId、Channel ID 和启用开关。<code>selfId</code> 留空时会向该平台所有已连接 Bot 发送；QQ 官方群请在 Channel ID 填写群 openid。</p>
 <p><b>🤖 QQ 官方 Bot：</b>主动推送会保留 QQ Markdown、JSON 按钮和 Puppeteer 卡片图策略；<code>qq-markdown</code> 与按钮只对 <code>platform=qq</code> 的官方群聊目标生效。</p>
 <p><b>🧪 Console 测试：</b>开启 <code>enableConsoleWebuiTestArea</code> 并保存后，插件详情顶部会注册测试区域。仅 authority 3 管理员可二次确认并点击立即推送；手动测试不受 <code>enableActivePush</code> 限制。</p>

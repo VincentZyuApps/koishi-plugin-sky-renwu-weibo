@@ -215,6 +215,19 @@ Cron、Console 立即推送和管理员测试指令都属于主动场景。每�
 | `requestTimeout` | `number` | `10000` | 微博请求超时时间，单位毫秒 |
 | `userAgent` | `string` | Edge/Chrome UA | 请求微博使用的 User-Agent，通常保持默认即可 |
 
+### 🖼️ 微博图片下载配置
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `imageDownloadConcurrency` | `number` | `2` | 图片下载并发数；降低并发可以缓解微博图片同时请求过多导致的失败 |
+| `imageDownloadTimeout` | `number` | `20000` | 单张图片下载超时时间，单位毫秒 |
+| `imageDownloadRetryCount` | `number` | `2` | 单张图片失败后的额外重试次数；默认最多尝试 3 次 |
+| `imageDownloadRetryDelay` | `number` | `1000` | 重试初始等待时间，单位毫秒；后续按指数退避增加 |
+| `imageDownloadMaxWait` | `number` | `120000` | 图片下载阶段最长等待时间，单位毫秒；到时后未完成图片会记录为失败 |
+| `incompleteImageBehavior` | `"send-available" \| "text-only" \| "skip"` | `"send-available"` | 图片不完整时的策略：发送成功子集、强制只发一条文字任务，或只发状态说明且不发送任务内容 |
+
+所有发送形式都只使用成功下载的同一批图片，并展示成功数/总数；图片顺序仍按原微博顺序保留。图片不完整的结果仍按 `cacheMinutes` 正常缓存，同时发起的同一微博请求会合并为一次下载。
+
 ### 💬 消息发送形式配置
 
 | 配置项 | 类型 | 默认值 | 说明 |

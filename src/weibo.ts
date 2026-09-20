@@ -67,9 +67,37 @@ interface DailyFetchAttempt {
 export interface DailyResult {
   text: string
   imageUrls: string[]
+  downloadedImages: DownloadedDailyImage[]
+  imageFailures: DailyImageFailure[]
   imageBuffers: Buffer[]
   sourceUrl?: string
   fetchedAt: number
+}
+
+export interface DownloadedDailyImage {
+  index: number
+  url: string
+  buffer: Buffer
+}
+
+export interface DailyImageFailure {
+  index: number
+  url: string
+  attempts: number
+  error: string
+}
+
+export function getDownloadedImageCount(result: DailyResult) {
+  return result.downloadedImages.length
+}
+
+export function isImageDownloadIncomplete(result: DailyResult) {
+  return result.imageUrls.length > 0 && getDownloadedImageCount(result) < result.imageUrls.length
+}
+
+export function formatImageDownloadStatus(result: DailyResult) {
+  if (!result.imageUrls.length) return ''
+  return `🖼️ 微博图片：${getDownloadedImageCount(result)}/${result.imageUrls.length} 张`
 }
 
 class CookieStore {
@@ -191,6 +219,8 @@ async function fetchDailyByClient(
       result: {
         text: '【🌏 国服】今日任务还未更新',
         imageUrls: [],
+        downloadedImages: [],
+        imageFailures: [],
         imageBuffers: [],
         fetchedAt: Date.now(),
       },
@@ -200,8 +230,9 @@ async function fetchDailyByClient(
   logInfo(ctx, config, '', `匹配到每日任务微博: route=${route}, source=${source}, mblogid=${post.mblogid}, id=${post.id}, imageUrls=${post.imageUrls.length}, url=${post.url}`)
   const longText = await fetchLongText(client, post, config.uid)
   logInfo(ctx, config, '', `微博长文拉取完成: hasLongText=${Boolean(longText)}, length=${(longText || '').length}`)
-  const imageBuffers = await fetchImages(ctx, client, config, post.imageUrls)
-  logInfo(ctx, config, '', `微博图片下载完成: success=${imageBuffers.length}, total=${post.imageUrls.length}`)
+  const { downloadedImages, imageFailures } = await fetchImages(ctx, client, config, post.imageUrls)
+  const imageBuffers = downloadedImages.map((image) => image.buffer)
+  logInfo(ctx, config, '', `微博图片下载完成: success=${downloadedImages.length}, failed=${imageFailures.length}, total=${post.imageUrls.length}`)
   const text = [
     longText || post.textRaw || '【🌏 国服】今日任务还未更新',
     '------------',
@@ -215,6 +246,8 @@ async function fetchDailyByClient(
     result: {
       text,
       imageUrls: post.imageUrls,
+      downloadedImages,
+      imageFailures,
       imageBuffers,
       sourceUrl: post.url,
       fetchedAt: Date.now(),
@@ -654,22 +687,89 @@ async function fetchImages(
   config: Config,
   urls: string[],
 ) {
-  const results = await Promise.allSettled(urls.map(async (url) => {
-    const response = await client.get<ArrayBuffer>(url, {
-      responseType: 'arraybuffer',
-      headers: { referer: 'https://weibo.com/' },
-    })
-    if (response.status !== 200) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-    return Buffer.from(response.data)
-  }))
+  const queue = urls.map((url, index) => ({ index, url })).filter((item) => Boolean(item.url))
+  const downloadedImages: DownloadedDailyImage[] = []
+  const imageFailures: DailyImageFailure[] = []
+  const deadline = Date.now() + config.imageDownloadMaxWait
+  const workerCount = Math.min(queue.length, config.imageDownloadConcurrency)
 
-  return results.flatMap((result, index) => {
-    if (result.status === 'fulfilled') return [result.value]
-    logInfo(ctx, config, `微博图片下载失败，已跳过第 ${index + 1} 张: ${result.reason}`)
-    return []
-  })
+  logInfo(ctx, config, '', `开始下载微博图片: total=${queue.length}, concurrency=${workerCount}, timeout=${config.imageDownloadTimeout}, retries=${config.imageDownloadRetryCount}, maxWait=${config.imageDownloadMaxWait}`)
+
+  const worker = async () => {
+    while (queue.length) {
+      const item = queue.shift()
+      if (!item) return
+      if (Date.now() >= deadline) {
+        imageFailures.push({ ...item, attempts: 0, error: '图片下载阶段超过最长等待时间，未开始下载。' })
+        continue
+      }
+
+      const outcome = await downloadImageWithRetry(client, config, item, deadline)
+      if ('buffer' in outcome) {
+        downloadedImages.push({ ...item, buffer: outcome.buffer })
+        logInfo(ctx, config, '', `微博图片下载成功: image=${item.index + 1}/${urls.length}, attempts=${outcome.attempts}`)
+      } else {
+        imageFailures.push({ ...item, attempts: outcome.attempts, error: outcome.error })
+        logInfo(ctx, config, '', `微博图片下载失败，已跳过第 ${item.index + 1}/${urls.length} 张: attempts=${outcome.attempts}, error=${outcome.error}`)
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, worker))
+  downloadedImages.sort((left, right) => left.index - right.index)
+  imageFailures.sort((left, right) => left.index - right.index)
+  return { downloadedImages, imageFailures }
+}
+
+async function downloadImageWithRetry(
+  client: AxiosInstance,
+  config: Config,
+  item: Pick<DownloadedDailyImage, 'index' | 'url'>,
+  deadline: number,
+): Promise<{ buffer: Buffer; attempts: number } | { attempts: number; error: string }> {
+  const maxAttempts = config.imageDownloadRetryCount + 1
+  let attempts = 0
+  let lastError = '未知错误'
+
+  while (attempts < maxAttempts) {
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) return { attempts, error: '图片下载阶段超过最长等待时间。' }
+
+    attempts += 1
+    try {
+      const response = await client.get<ArrayBuffer>(item.url, {
+        timeout: Math.max(1, Math.min(config.imageDownloadTimeout, remaining)),
+        responseType: 'arraybuffer',
+        headers: { referer: 'https://weibo.com/' },
+      })
+      if (response.status !== 200) throw new Error(`HTTP ${response.status}`)
+      return { buffer: Buffer.from(response.data), attempts }
+    } catch (error) {
+      lastError = formatImageDownloadError(error)
+      if (attempts >= maxAttempts || Date.now() >= deadline) break
+      const retryDelay = Math.min(config.imageDownloadRetryDelay * 2 ** (attempts - 1), 10000, Math.max(0, deadline - Date.now()))
+      if (retryDelay > 0) await wait(retryDelay)
+    }
+  }
+
+  return { attempts, error: lastError }
+}
+
+function formatImageDownloadError(error: unknown): string {
+  if (error instanceof AggregateError) {
+    const nested = Array.from(error.errors, formatImageDownloadError).filter(Boolean)
+    return nested.length ? `AggregateError: ${nested.join(' | ')}` : error.message
+  }
+  if (axios.isAxiosError(error)) {
+    return [error.code, error.message, error.response?.status && `HTTP ${error.response.status}`]
+      .filter(Boolean)
+      .join(': ')
+  }
+  return error instanceof Error ? error.message : String(error)
+}
+
+function wait(milliseconds: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
 }
 
 function normalizePosts(posts: WeiboRawPost[], uid: string): WeiboPost[] {

@@ -1,5 +1,5 @@
 import { Bot, Context, h, Session } from 'koishi'
-import { MSG_FORM, type Config, type MsgFormType } from './config'
+import { INCOMPLETE_IMAGE_BEHAVIOR, MSG_FORM, type Config, type MsgFormType } from './config'
 import {
   filterQQButtonModesForSession,
   filterQQButtonModesForTarget,
@@ -22,7 +22,7 @@ import { formatDailyQQMarkdown } from './templates/qq-markdown'
 import { formatDailyText } from './templates/text'
 import { formatDailyTextWithImage } from './templates/text-with-image'
 import { logInfo } from './utils/logger'
-import type { DailyResult } from './weibo'
+import { formatImageDownloadStatus, isImageDownloadIncomplete, type DailyResult } from './weibo'
 import { buildDailyKeyboard, QQ_MARKDOWN_BUTTON_ONLY_CONTENT } from './qq/keyboard'
 import { sendQQMarkdownToTarget } from './qq/markdown'
 import { sendQQPuppeteerImageWithButtonsToTarget } from './qq/sender'
@@ -48,8 +48,20 @@ export async function sendDailyResult(
   config: Config,
   result: DailyResult,
 ) {
-  const msgForms = normalizeMsgForms(config)
   const intro = formatDailyMessageIntro(config, 'passive')
+  if (isImageDownloadIncomplete(result)) {
+    const status = formatImageDownloadStatus(result)
+    if (config.incompleteImageBehavior === INCOMPLETE_IMAGE_BEHAVIOR.TEXT_ONLY) {
+      logInfo(ctx, config, '', `微博图片未完整下载，按 text-only 策略发送被动文字回执: ${status}`)
+      return sendSessionMessage(session, config, formatDailyText(result, intro))
+    }
+    if (config.incompleteImageBehavior === INCOMPLETE_IMAGE_BEHAVIOR.SKIP) {
+      logInfo(ctx, config, '', `微博图片未完整下载，按 skip 策略跳过被动任务内容: ${status}`)
+      return sendSessionMessage(session, config, formatIncompleteImageWarning(result))
+    }
+  }
+
+  const msgForms = normalizeMsgForms(config)
   if (!msgForms.length) {
     return sendSessionMessage(session, config, '已获取到光遇每日任务，但未选择任何发送形式。')
   }
@@ -231,11 +243,38 @@ export async function sendDailyResultToTarget(
   config: Config,
   result: DailyResult,
 ): Promise<ActiveDeliveryResult> {
-  const msgForms = normalizeMsgForms(config)
   const intro = formatDailyMessageIntro(config, 'active')
   const sentModes: string[] = []
   const skippedModes: string[] = []
   const failures: string[] = []
+
+  if (isImageDownloadIncomplete(result)) {
+    const status = formatImageDownloadStatus(result)
+    if (config.incompleteImageBehavior === INCOMPLETE_IMAGE_BEHAVIOR.TEXT_ONLY) {
+      try {
+        await sendTargetMessage(target, formatDailyText(result, intro))
+        logInfo(ctx, config, '', `微博图片未完整下载，按 text-only 策略发送主动文字回执 -> ${target.label}: ${status}`)
+        return { ok: true, sentModes: ['text-only'], skippedModes, failures }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return { ok: false, sentModes, skippedModes, failures: [`text-only: ${message}`] }
+      }
+    }
+    if (config.incompleteImageBehavior === INCOMPLETE_IMAGE_BEHAVIOR.SKIP) {
+      const reason = `微博图片未完整下载（${status.replace('🖼️ 微博图片：', '')}），已按 skip 策略不发送任务内容。`
+      try {
+        await sendTargetMessage(target, formatIncompleteImageWarning(result))
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        failures.push(`skip-status: ${message}`)
+      }
+      failures.push(reason)
+      logInfo(ctx, config, '', `微博图片未完整下载，按 skip 策略跳过主动任务内容 -> ${target.label}: ${status}`)
+      return { ok: false, sentModes, skippedModes: ['all'], failures }
+    }
+  }
+
+  const msgForms = normalizeMsgForms(config)
 
   if (!msgForms.length) {
     return {
@@ -352,4 +391,8 @@ export async function sendDailyResultToTarget(
 
 function sendTargetMessage(target: ActiveDeliveryTarget, content: any) {
   return target.bot.sendMessage(target.channelId, content)
+}
+
+function formatIncompleteImageWarning(result: DailyResult) {
+  return `⚠️ 微博图片未完整下载（${formatImageDownloadStatus(result).replace('🖼️ 微博图片：', '')}），已按配置不发送任务内容。`
 }

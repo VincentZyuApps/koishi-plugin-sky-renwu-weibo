@@ -32,6 +32,16 @@ export const WEIBO_ACCESS_MODE = {
 
 export type WeiboAccessModeType = typeof WEIBO_ACCESS_MODE[keyof typeof WEIBO_ACCESS_MODE]
 
+/** 🖼️ 微博图片不完整时的发送行为 */
+export const INCOMPLETE_IMAGE_BEHAVIOR = {
+  SEND_AVAILABLE: 'send-available',
+  TEXT_ONLY: 'text-only',
+  SKIP: 'skip',
+} as const
+
+export type IncompleteImageBehaviorType =
+  typeof INCOMPLETE_IMAGE_BEHAVIOR[keyof typeof INCOMPLETE_IMAGE_BEHAVIOR]
+
 /** 🤖 QQ Markdown 文案整理模式 */
 export const QQ_MARKDOWN_MODE = {
   STRUCTURED: 'structured',
@@ -93,6 +103,16 @@ export interface Config {
   cacheMinutes: number
   requestTimeout: number
   userAgent: string
+
+  // ==================
+  // 🖼️ 微博图片下载配置字段
+  // ==================
+  imageDownloadConcurrency: number
+  imageDownloadTimeout: number
+  imageDownloadRetryCount: number
+  imageDownloadRetryDelay: number
+  imageDownloadMaxWait: number
+  incompleteImageBehavior: IncompleteImageBehaviorType
 
   // ==================
   // 💬 消息发送配置字段
@@ -213,6 +233,47 @@ export const Config: Schema<Config> = Schema.intersect([
       .default('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0')
       .description('🕵️ 请求微博使用的 User-Agent。通常保持默认即可。'),
   }).description('🔑 微博请求配置'),
+
+  // ==================
+  // 🖼️ 微博图片下载配置分组
+  // ==================
+  Schema.object({
+    imageDownloadConcurrency: Schema.number()
+      .min(1)
+      .max(10)
+      .step(1)
+      .default(2)
+      .description('🧵 图片下载并发数。默认 2，降低同时请求微博图片时的网络拥塞和失败概率。'),
+    imageDownloadTimeout: Schema.number()
+      .min(1000)
+      .step(500)
+      .default(20000)
+      .description('⏱️ 单张图片下载超时时间，单位毫秒。'),
+    imageDownloadRetryCount: Schema.number()
+      .min(0)
+      .max(10)
+      .step(1)
+      .default(2)
+      .description('🔁 单张图片失败后的额外重试次数。默认 2，即每张图片最多尝试 3 次。'),
+    imageDownloadRetryDelay: Schema.number()
+      .min(0)
+      .step(100)
+      .default(1000)
+      .description('⏳ 图片下载重试的初始等待时间，单位毫秒。后续重试按指数退避增加。'),
+    imageDownloadMaxWait: Schema.number()
+      .min(1000)
+      .step(1000)
+      .default(120000)
+      .description('⌛ 整个微博图片下载阶段的最长等待时间，单位毫秒。到时后未成功的图片会记录为失败并继续后续发送流程。'),
+    incompleteImageBehavior: Schema.union([
+      Schema.const(INCOMPLETE_IMAGE_BEHAVIOR.SEND_AVAILABLE).description('【🖼️ send-available】发送已经成功下载的图片，并明确标注图片数量。'),
+      Schema.const(INCOMPLETE_IMAGE_BEHAVIOR.TEXT_ONLY).description('【🔤 text-only】忽略发送形式表，仅发送一条包含任务文字的回执。'),
+      Schema.const(INCOMPLETE_IMAGE_BEHAVIOR.SKIP).description('【⏭️ skip】不发送任务内容，只发送图片下载未完成的状态说明。'),
+    ])
+      .role('radio')
+      .default(INCOMPLETE_IMAGE_BEHAVIOR.SEND_AVAILABLE)
+      .description('⚠️ 微博存在图片但未全部下载成功时的发送策略。所有发送形式都会使用同一批成功下载的图片。'),
+  }).description('🖼️ 微博图片下载配置'),
 
   // ==================
   // 💬 消息发送形式配置分组
