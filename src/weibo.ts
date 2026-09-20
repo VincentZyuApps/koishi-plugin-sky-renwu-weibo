@@ -1,7 +1,8 @@
 import axios, { AxiosInstance } from 'axios'
 import type { Context } from 'koishi'
-import { WEIBO_ACCESS_MODE, type Config } from './config'
+import { WEIBO_ACCESS_MODE, IMAGE_CDN_ROTATE_STRATEGY, DAILY_TASK_MATCH_STRICTNESS, type Config, type DailyTaskMatchStrictnessType } from './config'
 import { logInfo } from './utils/logger'
+import { buildRaceUrls, resolveAttemptUrl } from './utils/image'
 
 const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
 const TASK_DATE_RE = /(?:^|\D)(\d{1,2})(?:[-/.]|月)(\d{1,2})(?:日)?\s*(?:每日)?任务/
@@ -209,7 +210,7 @@ async function fetchDailyByClient(
 
   const pattern = new RegExp(config.matchPattern)
   logPostMatchSamples(ctx, config, posts, pattern, route, source)
-  const post = posts.find((item) => isDailyTaskPost(item, pattern))
+  const post = posts.find((item) => isDailyTaskPost(item, pattern, config.dailyTaskMatchStrictness))
 
   if (!post) {
     logInfo(ctx, config, '', `未匹配到今日每日任务微博: route=${route}, source=${source}`)
@@ -731,13 +732,36 @@ async function downloadImageWithRetry(
   let attempts = 0
   let lastError = '未知错误'
 
+  // 🚀 parallel-race：首次即并发请求多个 CDN 域名，谁先成功用谁。
+  if (config.imageCdnRotateStrategy === IMAGE_CDN_ROTATE_STRATEGY.PARALLEL_RACE) {
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) return { attempts, error: '图片下载阶段超过最长等待时间。' }
+
+    attempts += 1
+    const raceUrls = buildRaceUrls(item.url, config.imageSizeDegradeStrategy)
+    try {
+      const buffer = await raceDownload(client, config, raceUrls, remaining)
+      return { buffer, attempts }
+    } catch (error) {
+      lastError = formatImageDownloadError(error)
+      // race 失败后，退回常规逐次重试流程（从第 2 次尝试起）。
+    }
+  }
+
   while (attempts < maxAttempts) {
     const remaining = deadline - Date.now()
     if (remaining <= 0) return { attempts, error: '图片下载阶段超过最长等待时间。' }
 
     attempts += 1
+    const attemptUrl = resolveAttemptUrl(
+      item.url,
+      attempts,
+      maxAttempts,
+      config.imageCdnRotateStrategy,
+      config.imageSizeDegradeStrategy,
+    )
     try {
-      const response = await client.get<ArrayBuffer>(item.url, {
+      const response = await client.get<ArrayBuffer>(attemptUrl, {
         timeout: Math.max(1, Math.min(config.imageDownloadTimeout, remaining)),
         responseType: 'arraybuffer',
         headers: { referer: 'https://weibo.com/' },
@@ -753,6 +777,37 @@ async function downloadImageWithRetry(
   }
 
   return { attempts, error: lastError }
+}
+
+/**
+ * 🚀 向多个 CDN 域名并发发起下载，返回第一个成功的响应缓冲区。
+ * 全部失败时抛出聚合错误。成功后其余请求会被中止。
+ */
+async function raceDownload(
+  client: AxiosInstance,
+  config: Config,
+  urls: string[],
+  remaining: number,
+): Promise<Buffer> {
+  const controllers = urls.map(() => new AbortController())
+  const timeout = Math.max(1, Math.min(config.imageDownloadTimeout, remaining))
+
+  const requests = urls.map(async (url, index) => {
+    const response = await client.get<ArrayBuffer>(url, {
+      timeout,
+      responseType: 'arraybuffer',
+      headers: { referer: 'https://weibo.com/' },
+      signal: controllers[index].signal,
+    })
+    if (response.status !== 200) throw new Error(`HTTP ${response.status}`)
+    // 命中后中止其余并发请求。
+    controllers.forEach((controller, other) => {
+      if (other !== index) controller.abort()
+    })
+    return Buffer.from(response.data)
+  })
+
+  return Promise.any(requests)
 }
 
 function formatImageDownloadError(error: unknown): string {
@@ -819,7 +874,7 @@ function logPostMatchSamples(
       `pattern=${configuredPatternMatched}`,
       `taskDate=${taskDate || '(none)'}`,
       `taskDateToday=${taskDateMatched}`,
-      `matched=${isDailyTaskPost(post, pattern)}`,
+      `matched=${isDailyTaskPost(post, pattern, config.dailyTaskMatchStrictness)}`,
       `images=${post.imageUrls.length}`,
       `text="${previewText(post.textRaw)}"`,
     ].join(' ')
@@ -829,12 +884,37 @@ function logPostMatchSamples(
     : `微博匹配样本: route=${route}, source=${source}; (empty)`)
 }
 
-function isDailyTaskPost(post: WeiboPost, pattern: RegExp) {
-  if (!isTodayInBeijing(post.createdAt)) return false
-  if (matchesConfiguredPattern(post.textRaw, pattern)) return true
-
+function isDailyTaskPost(
+  post: WeiboPost,
+  pattern: RegExp,
+  strictness: DailyTaskMatchStrictnessType,
+) {
+  const todayBeijing = formatBeijingDate(new Date())
   const taskDate = extractTaskDateFromText(post.textRaw, post.createdAt)
-  return taskDate === formatBeijingDate(new Date())
+
+  const patternMatched = matchesConfiguredPattern(post.textRaw, pattern) // 信号 A：命中配置正则
+  const textDateIsToday = Boolean(taskDate) && taskDate === todayBeijing // 信号 B：正文日期是今天
+  const publishedToday = isTodayInBeijing(post.createdAt) // 信号 C：发布时间是今天
+
+  switch (strictness) {
+    // 🔒 严格：必须命中正则，且正文日期或发布时间是今天。
+    case DAILY_TASK_MATCH_STRICTNESS.STRICT:
+      return patternMatched && (textDateIsToday || publishedToday)
+
+    // ⚖️ 标准：命中正则，或正文日期是今天。
+    case DAILY_TASK_MATCH_STRICTNESS.STANDARD:
+      return patternMatched || textDateIsToday
+
+    // 🌊 最宽松：三个信号任一满足即认。
+    case DAILY_TASK_MATCH_STRICTNESS.LOOSE:
+      return patternMatched || textDateIsToday || publishedToday
+
+    // 🍃 宽松（默认）：正文能抠出日期就只看日期；抠不到日期才退回「命中正则且发布时间是今天」。
+    case DAILY_TASK_MATCH_STRICTNESS.LENIENT:
+    default:
+      if (taskDate) return taskDate === todayBeijing
+      return publishedToday && patternMatched
+  }
 }
 
 function matchesConfiguredPattern(text: string, pattern: RegExp) {

@@ -211,9 +211,27 @@ Cron、Console 立即推送和管理员测试指令都属于主动场景。每�
 | `weiboAccessMode` | `"cookie-only" \| "guest-only" \| "cookie-then-guest" \| "guest-then-cookie"` | `"guest-then-cookie"` | 微博访问策略：A 仅 PC 微博网页登录态、B 仅无登录用户态、C 先 PC 网页登录态后无登录、D 先无登录后 PC 网页登录态；命令选项 `--weibo <mode>` 可临时覆盖此配置，优先级更高 |
 | `weiboCookie` | `string` | `""` | PC 微博网页登录 Cookie；访问策略 A/C/D 会使用这个配置项，可用 `scripts/20260630/weibo_cookie.py` 导出后手动复制，不会自动读取本地 txt |
 | `matchPattern` | `string` | 默认正则 | 筛选每日任务微博的正则表达式，微博文案格式变化时可调整 |
-| `cacheMinutes` | `number` | `20` | 内存缓存分钟数；`0` 表示不缓存 |
+| `dailyTaskMatchStrictness` | `"strict" \| "standard" \| "lenient" \| "loose"` | `"lenient"` | 今日任务微博的匹配严格度；在「宁可漏也不误判」与「宁可误判也不漏」之间权衡 |
+| `cacheMinutes` | `number` | `600` | 内存缓存分钟数；`0` 表示不缓存。默认 600（10 小时），因光遇每日任务同一天内不变 |
+| `discardCacheAcrossBeijingMidnight` | `boolean` | `true` | 是否在跨越「每日刷新分界点」后强制丢弃缓存；即使 `cacheMinutes` 未到期，跨天也会重新请求 |
+| `cacheMidnightOffsetMinutes` | `number` | `67` | 「每日刷新分界点」相对北京时间 0 点的偏移分钟数；默认 67 即凌晨 1:07，用于避开博主 0 点后才发博的空窗期。仅在上面开关开启时生效 |
 | `requestTimeout` | `number` | `10000` | 微博请求超时时间，单位毫秒 |
 | `userAgent` | `string` | Edge/Chrome UA | 请求微博使用的 User-Agent，通常保持默认即可 |
+
+> **🧊 缓存与「光遇日」判定：** 光遇任务北京时间凌晨固定刷新，同一天内不变，所以缓存放长到 10 小时。跨过「刷新分界点」（默认凌晨 1:07）后即便缓存没到期也强制刷新。分界点从 0 点后移 67 分钟，是因为博主发当天任务微博通常晚于 0 点，避开 0:00 到发博之间的空窗期。
+>
+> **🚫 绝不发昨天的任务：** 插件**优先按微博正文里的「X月X日任务」日期**判断任务归属哪天（抠不到日期才退回按发布时间兜底）。只要正文日期不是今天，就明确返回「今天还没发送任务微博」的提示，不会把昨天的任务当今天发。
+>
+> **🎯 匹配严格度 `dailyTaskMatchStrictness`：** 判断依据三个信号——A 命中 `matchPattern` 正则、B 正文日期是今天、C 发布时间是今天。
+>
+> | 档位 | 判定条件 | 取舍 |
+> |---|---|---|
+> | 🔒 `strict` | A **且** (B 或 C) | 防一切误判，博主改格式会漏 |
+> | ⚖️ `standard` | A **或** B | 接近插件最初逻辑 |
+> | 🍃 `lenient`（默认） | 有正文日期就只看 B；无日期退回 A 且 C | 防漏优先，改格式也能扛 |
+> | 🌊 `loose` | A 或 B 或 C 任一 | 几乎不漏，误判概率最高 |
+>
+> 默认 `lenient` 的理由：漏任务群友看不到，比偶尔误判更影响体验；而误判要求闲聊里恰好出现「今天日期+任务」字样，概率极低。无论哪档，正文日期能抠出且非今天都不会命中，不会误发昨天任务。
 
 ### 🖼️ 微博图片下载配置
 
@@ -224,9 +242,22 @@ Cron、Console 立即推送和管理员测试指令都属于主动场景。每�
 | `imageDownloadRetryCount` | `number` | `2` | 单张图片失败后的额外重试次数；默认最多尝试 3 次 |
 | `imageDownloadRetryDelay` | `number` | `1000` | 重试初始等待时间，单位毫秒；后续按指数退避增加 |
 | `imageDownloadMaxWait` | `number` | `120000` | 图片下载阶段最长等待时间，单位毫秒；到时后未完成图片会记录为失败 |
+| `imageCdnRotateStrategy` | `"off" \| "on-final-retry" \| "each-retry" \| "parallel-race"` | `"each-retry"` | 下载重试时的 CDN 域名轮换策略；换域名不损画质，专治个别节点抽风超时 |
+| `imageSizeDegradeStrategy` | `"always-largest" \| "degrade-final-retry" \| "degrade-each-retry" \| "start-mid"` | `"degrade-final-retry"` | 下载重试时的尺寸降级策略；降级会损失画质，作为拿不到高清图的兜底 |
 | `incompleteImageBehavior` | `"send-available" \| "text-only" \| "skip"` | `"send-available"` | 图片不完整时的策略：发送成功子集、强制只发一条文字任务，或只发状态说明且不发送任务内容 |
 
 所有发送形式都只使用成功下载的同一批图片，并展示成功数/总数；图片顺序仍按原微博顺序保留。图片不完整的结果仍按 `cacheMinutes` 正常缓存，同时发起的同一微博请求会合并为一次下载。
+
+> **🌐 CDN 域名轮换 × 📐 尺寸降级 策略矩阵**（两者各自独立推进、互不干扰）：
+>
+> | 档位 | `imageCdnRotateStrategy`（换域名，不损画质） | `imageSizeDegradeStrategy`（降尺寸，损画质） |
+> |---|---|---|
+> | 🔒/💎 关闭·最高清 | `off`：始终原始链接，不换域名 | `always-largest`：永远最大尺寸，拿不到就缺图 |
+> | 🐢 保守 | `on-final-retry`：仅最后一次重试换一个域名 | `degrade-final-retry`：仅最后一次重试降一档（**默认**） |
+> | ⚖️ 均衡 | `each-retry`：每次重试轮换域名 wx2→wx3→wx4→wx1（**默认**） | `degrade-each-retry`：每次重试降一档 large→mw2000→mw1024→mw690 |
+> | 🚀 激进 | `parallel-race`：首次并发多域名抢答 ⚠️ 请求翻倍，可能触发限流/反爬 | `start-mid`：首次就从中等尺寸 mw2000 起步 |
+>
+> **💡 实现细节与坑：** 两个策略都是**纯 URL 字符串替换**——域名只认 `xxx{数字}.sinaimg.cn` 这类 host，尺寸只认路径里的 `large`/`mw2000` 等标识，**格式不认识时都原样退回原链接**，不会瞎改。默认组合是「换域名积极（纯赚）、降尺寸克制（保画质）」。想看高清大图可直接点开消息里的微博原文链接，所以尺寸降级不必太在意画质损失。`parallel-race` 请求量成倍增加，谨慎开启。
 
 ### 💬 消息发送形式配置
 

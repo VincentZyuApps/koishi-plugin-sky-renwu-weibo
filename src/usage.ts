@@ -135,4 +135,60 @@ export const usage = `
 <p><code>weibo_cookie.private.txt</code>、<code>latest.debug.log</code> 和 <code>.browser-profile</code> 都包含隐私信息，不要发给别人，也不要提交到 Git。</p>
 </div>
 </details>
+
+<details style="${detailsStyle}">
+<summary style="${summaryStyle}"><b style="color: #d97706;">🎯 今日任务匹配严格度 dailyTaskMatchStrictness</b></summary>
+<div style="${detailsBodyStyle}">
+<p>判断一条微博是不是「今天的每日任务」，插件手里有三个信号：<b>A</b> 命中配置的 <code>matchPattern</code> 正则（如 <code>光遇9.20每日任务</code>）、<b>B</b> 正文里抠出的日期是今天（如 <code>9月20日任务</code>）、<b>C</b> 发布时间是北京时间今天。此配置控制这三个信号如何组合，从严到宽。</p>
+<p><b>🔒 strict / 严格：</b>必须 A 命中，<b>且</b> (B 或 C 是今天)。防一切误判，但博主一旦改标题格式让正则不命中，就可能漏掉当天任务。</p>
+<p><b>⚖️ standard / 标准：</b>A 命中，<b>或</b> B 是今天。接近插件最初的判定逻辑。</p>
+<p><b>🍃 lenient / 宽松（默认）：</b>正文能抠出日期就只看日期是否为今天；抠不到日期时才退回「A 命中且 C 是今天」。防漏优先，博主改格式也能扛住。</p>
+<p><b>🌊 loose / 最宽松：</b>A、B、C 任一满足即认。几乎不漏，但误判概率最高。</p>
+<blockquote style="margin: 12px 0; padding: 10px 14px; border-left: 5px solid #d97706; border-radius: 6px; background: rgba(217, 119, 6, .1);">
+<b>💡 怎么选？</b>核心是在「宁可漏也不误判」（strict）与「宁可误判也不漏」（loose）之间权衡。默认 lenient 的判断是：漏掉当天任务群友就看不到，比偶尔误判更影响体验；而误判要求博主在闲聊里恰好写出「今天的日期 + 任务」字样，概率极低。<br>
+<b>🚫 绝不发昨天的任务：</b>无论哪档，只要正文日期能抠出且不是今天，都不会命中——插件会明确返回「今天还没发送任务微博」，不会把昨天的当今天发。
+</blockquote>
+</div>
+</details>
+
+<details style="${detailsStyle}">
+<summary style="${summaryStyle}"><b style="color: #0ea5e9;">🌐 图片下载：CDN 域名轮换策略 imageCdnRotateStrategy</b></summary>
+<div style="${detailsBodyStyle}">
+<p>微博图床同一张图在多个镜像域名下都可访问（如 <code>wx1~wx4.sinaimg.cn</code>、<code>tvax1~tvax4.sinaimg.cn</code>）。个别 CDN 节点偶发抽风、卡住超时时，换一个域名往往能立刻拿到图。此策略控制「下载重试时是否 / 如何轮换域名」。</p>
+<p><b>🔒 off / 关闭：</b>始终用原始链接，重试也不换域名。</p>
+<p><b>🐢 on-final-retry / 保守：</b>只在最后一次重试才换一个域名，撞运气式兜底。</p>
+<p><b>⚖️ each-retry / 均衡（默认）：</b>每次重试轮换到下一个域名（wx2→wx3→wx4→wx1）。专治日志里那种「同一张图连撞同一节点多次超时」的情况。换域名不损失任何画质，是纯赚的手段。</p>
+<p><b>🚀 parallel-race / 激进：</b>首次就同时向多个域名发起请求，谁先返回用谁，命中后中止其余请求。速度最快，但 <b style="color: #e11d48;">请求量成倍增加，可能触发微博限流或反爬拦截</b>，谨慎开启。</p>
+<blockquote style="margin: 12px 0; padding: 10px 14px; border-left: 5px solid #0ea5e9; border-radius: 6px; background: rgba(14, 165, 233, .1);">
+<b>💡 实现细节：</b>域名轮换是纯 URL 字符串替换，只认 <code>xxx{数字}.sinaimg.cn</code> 这类 host。<b>格式不认识时会原样退回原链接</b>，不会瞎改。轮换步数以「当前是第几次重试」推进，和下面的尺寸降级策略各自独立、互不干扰。
+</blockquote>
+</div>
+</details>
+
+<details style="${detailsStyle}">
+<summary style="${summaryStyle}"><b style="color: #16a34a;">📐 图片下载：尺寸降级策略 imageSizeDegradeStrategy</b></summary>
+<div style="${detailsBodyStyle}">
+<p>微博图 URL 路径里带尺寸标识（<code>large</code> / <code>mw2000</code> / <code>mw1024</code> / <code>mw690</code> …）。大图偶尔下载很慢甚至超时，此时降一档尺寸常能快速拿到图。此策略控制「下载重试时是否 / 如何降级尺寸」。降级会损失画质，通常作为拿不到高清图时的兜底。</p>
+<p><b>💎 always-largest / 最高清：</b>永远只用最大尺寸，超时也不降；拿不到就缺那张图。画质优先。</p>
+<p><b>🐢 degrade-final-retry / 保守（默认）：</b>只在最后一次重试才降一档尺寸保底，前面几次都保持最高清。兼顾画质与成功率。</p>
+<p><b>⚖️ degrade-each-retry / 均衡：</b>每次重试都降一档（largest→mw2000→mw1024→mw690），更快拿到图，但画质下降也快。</p>
+<p><b>🚀 start-mid / 激进：</b>首次就直接从中等尺寸（mw2000）起步，几乎不缺图，默认牺牲画质换成功率。</p>
+<blockquote style="margin: 12px 0; padding: 10px 14px; border-left: 5px solid #16a34a; border-radius: 6px; background: rgba(22, 163, 74, .1);">
+<b>💡 想看大图？</b>本插件核心价值是提醒群友「今天有哪些任务」，画质低甚至只有文字也够用。真想看高清大图，直接点开消息里的微博原文链接即可。尺寸降级同样是纯 URL 字符串替换，识别不到尺寸段时原样退回。
+</blockquote>
+</div>
+</details>
+
+<details style="${detailsStyle}">
+<summary style="${summaryStyle}"><b style="color: #7c3aed;">🧊 缓存策略：跨天丢弃与「光遇日」分界</b></summary>
+<div style="${detailsBodyStyle}">
+<p>光遇国服每日任务在北京时间凌晨固定刷新，同一天内内容不变，因此 <code>cacheMinutes</code> 默认放长到 <b>600（10 小时）</b>，减少重复请求微博。</p>
+<p><b>🌙 discardCacheAcrossBeijingMidnight（默认开启）：</b>即使缓存分钟数还没到期，只要缓存写入时间和当前时间不在同一个「光遇日」，也会强制丢弃缓存、重新请求，确保新的一天拿到最新任务。</p>
+<p><b>⏰ cacheMidnightOffsetMinutes（默认 67）：</b>「每日刷新分界点」相对北京时间 0 点的偏移分钟数。默认 67 即凌晨 <b>1:07</b> 才算进入新的一天。</p>
+<blockquote style="margin: 12px 0; padding: 10px 14px; border-left: 5px solid #7c3aed; border-radius: 6px; background: rgba(124, 58, 237, .1);">
+<b>💡 为什么要偏移，不直接卡 0 点？</b>博主发布当天任务微博通常晚于 0 点（可能 0:30、1:00 才发）。如果 0 点一到就丢缓存，0:00 到博主发博之间会有空窗期，容易抓到「还没更新的今天」。留出偏移可以绕开这段空窗。<br>
+<b>🚫 抓到昨天的任务怎么办？</b>插件会<b>优先按微博正文里的「X月X日任务」日期</b>判断任务归属哪天（抠不到日期才退回按发布时间）。只要正文日期不是今天，插件就明确返回「今天还没发送任务微博」的提示，<b>绝不把昨天的任务当今天发</b>。
+</blockquote>
+</div>
+</details>
 `

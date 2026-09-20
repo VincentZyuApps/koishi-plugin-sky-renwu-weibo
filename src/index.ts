@@ -36,9 +36,19 @@ export function apply(ctx: Context, config: ConfigType) {
     const now = Date.now()
     const cacheKey = fetchConfig.weiboAccessMode
     const cached = cache[cacheKey]
-    if (useCache && cached && fetchConfig.cacheMinutes > 0 && now - cached.fetchedAt < fetchConfig.cacheMinutes * 60_000) {
+    if (
+      useCache
+      && cached
+      && fetchConfig.cacheMinutes > 0
+      && now - cached.fetchedAt < fetchConfig.cacheMinutes * 60_000
+      && !isCacheAcrossDailyRefresh(fetchConfig, cached.fetchedAt, now)
+    ) {
       logInfo(ctx, fetchConfig, '', `命中缓存: mode=${cacheKey}, ageMs=${now - cached.fetchedAt}, cacheMinutes=${fetchConfig.cacheMinutes}`)
       return cached
+    }
+
+    if (cached && useCache && fetchConfig.cacheMinutes > 0 && now - cached.fetchedAt < fetchConfig.cacheMinutes * 60_000) {
+      logInfo(ctx, fetchConfig, '', `缓存跨越每日刷新分界点，强制丢弃: mode=${cacheKey}, offsetMinutes=${fetchConfig.cacheMidnightOffsetMinutes}`)
     }
 
     const pending = inFlight[cacheKey]
@@ -137,6 +147,30 @@ function getQuotePrefix(session: Session, config: ConfigType) {
 
 function hasWeiboAccessModeOption(value: unknown) {
   return value !== undefined && value !== null && String(value).trim() !== ''
+}
+
+/**
+ * 判断缓存写入时间 `cachedAt` 与当前时间 `now` 是否跨越了「每日刷新分界点」。
+ * 分界点 = 北京时间 0 点 + cacheMidnightOffsetMinutes 分钟。
+ * 跨越（即分别落在不同的「光遇日」）时返回 true，表示缓存应当被丢弃。
+ * 开关关闭时恒返回 false。
+ */
+function isCacheAcrossDailyRefresh(config: ConfigType, cachedAt: number, now: number): boolean {
+  if (!config.discardCacheAcrossBeijingMidnight) return false
+  return skyDayIndex(cachedAt, config.cacheMidnightOffsetMinutes) !== skyDayIndex(now, config.cacheMidnightOffsetMinutes)
+}
+
+/**
+ * 计算某个时间戳属于第几个「光遇日」。
+ * 以北京时间为基准，把分界点从 0 点后移 offsetMinutes 分钟，再按 24h 取整。
+ * 同一个「光遇日」内的时间戳返回相同整数。
+ */
+function skyDayIndex(timestamp: number, offsetMinutes: number): number {
+  // 北京时间 = UTC + 8h。先把时间戳平移到「北京时区且分界点归零」的坐标系。
+  const beijingOffsetMs = 8 * 60 * 60_000
+  const refreshOffsetMs = offsetMinutes * 60_000
+  const shifted = timestamp + beijingOffsetMs - refreshOffsetMs
+  return Math.floor(shifted / 86_400_000)
 }
 
 function normalizeConfigStringList(values: unknown): string[] {

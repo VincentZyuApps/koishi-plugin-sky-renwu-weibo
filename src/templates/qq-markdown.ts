@@ -218,7 +218,7 @@ function appendImageSection(markdown: string[], result: DailyResult) {
       getImageDimensions(image.buffer),
       QQ_MARKDOWN_IMAGE_SIZE,
     )
-    markdown.push('', formatImageCaption(image.index, imageTotal))
+    markdown.push('', `- ${formatImageCaption(image.index, imageTotal)}`)
     markdown.push(`![微博图片 ${image.index + 1}/${result.imageUrls.length} #${dimensions.width}px #${dimensions.height}px](${image.url})`)
   }
 }

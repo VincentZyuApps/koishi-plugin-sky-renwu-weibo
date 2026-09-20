@@ -42,6 +42,39 @@ export const INCOMPLETE_IMAGE_BEHAVIOR = {
 export type IncompleteImageBehaviorType =
   typeof INCOMPLETE_IMAGE_BEHAVIOR[keyof typeof INCOMPLETE_IMAGE_BEHAVIOR]
 
+/** 🌐 图片下载重试时的 CDN 域名轮换策略 */
+export const IMAGE_CDN_ROTATE_STRATEGY = {
+  OFF: 'off',
+  ON_FINAL_RETRY: 'on-final-retry',
+  EACH_RETRY: 'each-retry',
+  PARALLEL_RACE: 'parallel-race',
+} as const
+
+export type ImageCdnRotateStrategyType =
+  typeof IMAGE_CDN_ROTATE_STRATEGY[keyof typeof IMAGE_CDN_ROTATE_STRATEGY]
+
+/** 📐 图片下载重试时的尺寸降级策略 */
+export const IMAGE_SIZE_DEGRADE_STRATEGY = {
+  ALWAYS_LARGEST: 'always-largest',
+  DEGRADE_FINAL_RETRY: 'degrade-final-retry',
+  DEGRADE_EACH_RETRY: 'degrade-each-retry',
+  START_MID: 'start-mid',
+} as const
+
+export type ImageSizeDegradeStrategyType =
+  typeof IMAGE_SIZE_DEGRADE_STRATEGY[keyof typeof IMAGE_SIZE_DEGRADE_STRATEGY]
+
+/** 🎯 今日任务微博的匹配严格度 */
+export const DAILY_TASK_MATCH_STRICTNESS = {
+  STRICT: 'strict',
+  STANDARD: 'standard',
+  LENIENT: 'lenient',
+  LOOSE: 'loose',
+} as const
+
+export type DailyTaskMatchStrictnessType =
+  typeof DAILY_TASK_MATCH_STRICTNESS[keyof typeof DAILY_TASK_MATCH_STRICTNESS]
+
 /** 🤖 QQ Markdown 文案整理模式 */
 export const QQ_MARKDOWN_MODE = {
   STRUCTURED: 'structured',
@@ -100,7 +133,10 @@ export interface Config {
   weiboAccessMode: WeiboAccessModeType
   weiboCookie: string
   matchPattern: string
+  dailyTaskMatchStrictness: DailyTaskMatchStrictnessType
   cacheMinutes: number
+  discardCacheAcrossBeijingMidnight: boolean
+  cacheMidnightOffsetMinutes: number
   requestTimeout: number
   userAgent: string
 
@@ -112,6 +148,8 @@ export interface Config {
   imageDownloadRetryCount: number
   imageDownloadRetryDelay: number
   imageDownloadMaxWait: number
+  imageCdnRotateStrategy: ImageCdnRotateStrategyType
+  imageSizeDegradeStrategy: ImageSizeDegradeStrategyType
   incompleteImageBehavior: IncompleteImageBehaviorType
 
   // ==================
@@ -218,11 +256,29 @@ export const Config: Schema<Config> = Schema.intersect([
       .role('textarea', { rows: [2, 5] })
       .default('(?:^#[^#]*光遇[^#]*超话]#\\s*\\d{1,2}\\.\\d{1,2}\\s*|^\\s*(?:sky)?光遇\\s*\\d{1,2}\\.\\d{1,2}\\s*(?:每日)?任务)')
       .description('🔎 筛选每日任务微博的正则表达式。微博文案格式变化时可以在这里调整；插件也会自动识别 07.05每日任务 这类日期文案作为兜底。'),
+    dailyTaskMatchStrictness: Schema.union([
+      Schema.const(DAILY_TASK_MATCH_STRICTNESS.STRICT).description('【🔒 strict / 严格】必须命中上面的正则 <b>且</b> 正文日期或发布时间是今天。防一切误判，但博主一旦改标题格式就可能漏掉当天任务。'),
+      Schema.const(DAILY_TASK_MATCH_STRICTNESS.STANDARD).description('【⚖️ standard / 标准】命中正则，<b>或</b> 正文日期是今天。接近插件最初的判定逻辑，均衡取舍。'),
+      Schema.const(DAILY_TASK_MATCH_STRICTNESS.LENIENT).description('【🍃 lenient / 宽松】正文能抠出日期就只看日期是否为今天；抠不到日期时才退回「命中正则且发布时间是今天」。防漏优先，博主改格式也能扛住。'),
+      Schema.const(DAILY_TASK_MATCH_STRICTNESS.LOOSE).description('【🌊 loose / 最宽松】命中正则、正文日期是今天、发布时间是今天，三者任一满足即认。几乎不漏，但误判概率最高。'),
+    ])
+      .role('radio')
+      .default(DAILY_TASK_MATCH_STRICTNESS.LENIENT)
+      .description('🎯 今日任务微博的匹配严格度。用于在「宁可漏也不误判」与「宁可误判也不漏」之间权衡。默认 lenient：漏掉当天任务比偶尔误判更影响群友体验，且误判要求闲聊里恰好出现「今天日期+任务」字样，概率极低。'),
     cacheMinutes: Schema.number()
       .min(0)
       .step(1)
-      .default(20)
-      .description('🧊 内存缓存分钟数。0 表示不缓存；建议保留缓存，避免同一天多次请求微博。'),
+      .default(600)
+      .description('🧊 内存缓存分钟数。0 表示不缓存；默认 600（10 小时）。因为光遇每日任务同一天内不变，缓存可以放长，避免同一天多次请求微博。'),
+    discardCacheAcrossBeijingMidnight: Schema.boolean()
+      .default(true)
+      .description('🌙 是否在跨越北京时间「每日刷新分界点」后强制丢弃缓存。默认开启：即使缓存分钟数还没到，只要当前时间和缓存写入时间不在同一个「光遇日」，也会重新请求微博，确保新的一天拿到最新任务。'),
+    cacheMidnightOffsetMinutes: Schema.number()
+      .min(0)
+      .max(720)
+      .step(1)
+      .default(67)
+      .description('⏰ 「每日刷新分界点」相对北京时间 0 点的偏移分钟数。默认 67，即凌晨 1:07 才算进入新的一天。因为博主发布当天任务微博通常会晚于 0 点，留出偏移可以避开 0:00 到发博之间的空窗期。仅在上面的开关开启时生效。'),
     requestTimeout: Schema.number()
       .min(1000)
       .step(500)
@@ -265,6 +321,24 @@ export const Config: Schema<Config> = Schema.intersect([
       .step(1000)
       .default(120000)
       .description('⌛ 整个微博图片下载阶段的最长等待时间，单位毫秒。到时后未成功的图片会记录为失败并继续后续发送流程。'),
+    imageCdnRotateStrategy: Schema.union([
+      Schema.const(IMAGE_CDN_ROTATE_STRATEGY.OFF).description('【🔒 off / 关闭】始终使用原始图片链接，重试时也不更换 CDN 域名。'),
+      Schema.const(IMAGE_CDN_ROTATE_STRATEGY.ON_FINAL_RETRY).description('【🐢 on-final-retry / 保守】仅在最后一次重试时更换一个 CDN 域名，撞运气式兜底。'),
+      Schema.const(IMAGE_CDN_ROTATE_STRATEGY.EACH_RETRY).description('【⚖️ each-retry / 均衡】每次重试都轮换到下一个 CDN 域名（wx2→wx3→wx4→wx1），专治个别节点抽风超时。换域名不损画质。'),
+      Schema.const(IMAGE_CDN_ROTATE_STRATEGY.PARALLEL_RACE).description('【🚀 parallel-race / 激进】首次就同时向多个 CDN 域名发起请求，谁先返回用谁。⚠️ 请求量成倍增加，可能触发微博限流或反爬拦截，谨慎开启。'),
+    ])
+      .role('radio')
+      .default(IMAGE_CDN_ROTATE_STRATEGY.EACH_RETRY)
+      .description('🌐 图片下载重试时的 CDN 域名轮换策略。微博图床同一张图在 wx1~wx4 等多个镜像域名下都可访问，某个节点卡住时换个节点常能秒回。此策略与下面的尺寸降级策略各自独立推进，互不干扰。'),
+    imageSizeDegradeStrategy: Schema.union([
+      Schema.const(IMAGE_SIZE_DEGRADE_STRATEGY.ALWAYS_LARGEST).description('【💎 always-largest / 最高清】永远只用最大尺寸，超时也不降级；拿不到就缺那张图。画质优先。'),
+      Schema.const(IMAGE_SIZE_DEGRADE_STRATEGY.DEGRADE_FINAL_RETRY).description('【🐢 degrade-final-retry / 保守】仅在最后一次重试时降一档尺寸保底，前面几次都保持最高清。默认值，兼顾画质与成功率。'),
+      Schema.const(IMAGE_SIZE_DEGRADE_STRATEGY.DEGRADE_EACH_RETRY).description('【⚖️ degrade-each-retry / 均衡】每次重试都降一档尺寸（largest→mw2000→mw1024→mw690），更快拿到图，但画质下降也快。'),
+      Schema.const(IMAGE_SIZE_DEGRADE_STRATEGY.START_MID).description('【🚀 start-mid / 激进】首次就直接从中等尺寸（mw2000）起步，几乎不缺图。⚠️ 默认牺牲画质换成功率。'),
+    ])
+      .role('radio')
+      .default(IMAGE_SIZE_DEGRADE_STRATEGY.DEGRADE_FINAL_RETRY)
+      .description('📐 图片下载重试时的尺寸降级策略。尺寸降级会损失画质，通常作为拿不到高清图时的兜底手段。想看大图可直接点开微博原文链接。此策略与上面的 CDN 轮换策略各自独立推进。'),
     incompleteImageBehavior: Schema.union([
       Schema.const(INCOMPLETE_IMAGE_BEHAVIOR.SEND_AVAILABLE).description('【🖼️ send-available】发送已经成功下载的图片，并明确标注图片数量。'),
       Schema.const(INCOMPLETE_IMAGE_BEHAVIOR.TEXT_ONLY).description('【🔤 text-only】忽略发送形式表，仅发送一条包含任务文字的回执。'),
