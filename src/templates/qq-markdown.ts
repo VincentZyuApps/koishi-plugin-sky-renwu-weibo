@@ -2,6 +2,7 @@ import { QQ_MARKDOWN_MODE, type Config } from '../config'
 import { fitImageDimensions, getImageDimensions } from '../qq/image'
 import type { DailyResult } from '../weibo'
 import { formatDailyMessageIntroMarkdown } from './common/intro'
+import { formatImageCaption, getImageCaptionTotal } from './common/caption'
 
 const QQ_MARKDOWN_IMAGE_SIZE = {
   maxWidth: 600,
@@ -211,11 +212,13 @@ function appendImageSection(markdown: string[], result: DailyResult) {
   if (!images.length) return
 
   markdown.push('', '## 微博图片')
+  const imageTotal = getImageCaptionTotal(result)
   for (const image of images) {
     const dimensions = fitImageDimensions(
       getImageDimensions(image.buffer),
       QQ_MARKDOWN_IMAGE_SIZE,
     )
+    markdown.push('', formatImageCaption(image.index, imageTotal))
     markdown.push(`![微博图片 ${image.index + 1}/${result.imageUrls.length} #${dimensions.width}px #${dimensions.height}px](${image.url})`)
   }
 }

@@ -5,6 +5,7 @@ import type { Config } from '../config'
 import type { DailyResult } from '../weibo'
 import { resolveRuntimeFontPath } from '../utils/fonts'
 import { bufferToDataUrl } from '../utils/image'
+import { formatImageCaption, getImageCaptionTotal } from './common/caption'
 
 export interface RenderedDailyImage {
   base64: string
@@ -62,9 +63,13 @@ function generateDailyHtml(ctx: Context, result: DailyResult, config: Config, in
   const [mainText, sourceText] = splitSourceText(result.text)
   const fontFace = generateFontFace(ctx, config)
   const imageCount = result.downloadedImages.length
+  const imageTotal = getImageCaptionTotal(result)
   const imageHtml = result.downloadedImages.map((image) => `
-    <div class="image-frame">
-      <img src="${bufferToDataUrl(image.buffer)}" alt="daily-${image.index + 1}">
+    <div class="image-item">
+      <div class="image-caption">${escapeHtml(formatImageCaption(image.index, imageTotal))}</div>
+      <div class="image-frame">
+        <img src="${bufferToDataUrl(image.buffer)}" alt="daily-${image.index + 1}">
+      </div>
     </div>
   `).join('')
 
@@ -335,6 +340,27 @@ ${fontFace}
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       gap: 12px;
+    }
+
+    .image-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .image-caption {
+      color: #148fbd;
+      font-size: 26px;
+      font-weight: 900;
+      text-align: center;
+      letter-spacing: 0;
+      text-shadow:
+        -2px -2px 0 #fff,
+        2px -2px 0 #fff,
+        -2px 2px 0 #fff,
+        2px 2px 0 #fff,
+        0 0 10px rgba(255, 255, 255, 0.9),
+        0 3px 15px rgba(92, 212, 249, 0.5);
     }
 
     .image-frame {

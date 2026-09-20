@@ -1,6 +1,7 @@
 import type { DailyResult } from '../weibo'
 import { bufferToDataUrl } from '../utils/image'
 import { formatDailyText } from './text'
+import { formatImageCaption, getImageCaptionTotal } from './common/caption'
 
 export function formatDailyForward(
   result: DailyResult,
@@ -12,8 +13,13 @@ export function formatDailyForward(
   const textNode = result.text || intro
     ? addForwardNode(botId, botName, formatDailyText(result, intro))
     : ''
-  const imageNodes = result.imageBuffers
-    .map((image) => addForwardNode(botId, botName, `<img src="${bufferToDataUrl(image)}"/>`))
+  const imageTotal = getImageCaptionTotal(result)
+  const imageNodes = result.downloadedImages
+    .map((image) => addForwardNode(
+      botId,
+      botName,
+      `${escapeText(formatImageCaption(image.index, imageTotal))}\n<img src="${bufferToDataUrl(image.buffer)}"/>`,
+    ))
     .join('\n')
 
   return `<message forward>\n${textNode}\n${imageNodes}\n</message>`
@@ -35,6 +41,13 @@ function escapeAttr(value: string) {
   return value
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function escapeText(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
 }
