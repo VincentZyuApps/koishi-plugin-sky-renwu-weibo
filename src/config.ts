@@ -668,7 +668,7 @@ export const Config: Schema<Config> = Schema.intersect([
       ])
       .description([
         '📱 <b>特定平台 Puppeteer 卡片图发送规则表格</b>',
-        '针对 Telegram 等限制长图尺寸（宽+高 > 10000px 会报 <code>PHOTO_INVALID_DIMENSIONS</code>）的平台单独制定策略。',
+        '<i>默认值配置是针对 Telegram 等限制长图尺寸（宽+高 > 10000px 会报 <code>PHOTO_INVALID_DIMENSIONS</code>）的平台单独制定策略。</i>',
         '未在表格中配置的平台默认发送完整长图。',
       ].join('<br/>')),
   }).description('🖼️ Puppeteer 卡片图配置'),
