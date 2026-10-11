@@ -7,18 +7,39 @@ import { resolveRuntimeFontPath } from '../utils/fonts'
 import { bufferToDataUrl } from '../utils/image'
 import { formatImageCaption, getImageCaptionTotal } from './common/caption'
 
+export interface RenderedDailyImageSlice {
+  base64: string
+  index: number
+  total: number
+  y: number
+  height: number
+}
+
 export interface RenderedDailyImage {
   base64: string
   width: number
   height: number
+  slices?: RenderedDailyImageSlice[]
+}
+
+export interface RenderDailyImageOptions {
+  intro?: string
+  needSlices?: boolean
+  sliceHeight?: number
+  overlapHeight?: number
 }
 
 export async function renderDailyImage(
   ctx: Context,
   result: DailyResult,
   config: Config,
-  intro = '',
+  introOrOptions: string | RenderDailyImageOptions = '',
 ): Promise<RenderedDailyImage> {
+  const options: RenderDailyImageOptions = typeof introOrOptions === 'string'
+    ? { intro: introOrOptions }
+    : (introOrOptions || {})
+  const intro = options.intro || ''
+
   const page = await ctx.puppeteer.page()
 
   try {
@@ -48,10 +69,52 @@ export async function renderDailyImage(
     }
 
     const base64 = await page.screenshot(screenshotOptions)
+
+    let slices: RenderedDailyImageSlice[] | undefined
+    if (options.needSlices && options.sliceHeight && options.sliceHeight > 0) {
+      slices = []
+      const sliceHeight = options.sliceHeight
+      const overlapHeight = options.overlapHeight ?? 25
+
+      // 计算切片区间
+      let currentY = 0
+      const sliceIntervals: Array<{ y: number; h: number }> = []
+      while (currentY < contentHeight) {
+        const remainingHeight = contentHeight - currentY
+        const h = Math.min(sliceHeight, remainingHeight)
+        sliceIntervals.push({ y: currentY, h })
+        if (currentY + h >= contentHeight) {
+          break
+        }
+        currentY = currentY + h - overlapHeight
+      }
+
+      for (let i = 0; i < sliceIntervals.length; i++) {
+        const interval = sliceIntervals[i]
+        const sliceBase64 = await page.screenshot({
+          ...screenshotOptions,
+          clip: {
+            x: 0,
+            y: interval.y,
+            width: config.imageWidth,
+            height: interval.h,
+          },
+        })
+        slices.push({
+          base64: sliceBase64,
+          index: i,
+          total: sliceIntervals.length,
+          y: interval.y,
+          height: interval.h,
+        })
+      }
+    }
+
     return {
       base64,
       width: config.imageWidth,
       height: contentHeight,
+      slices,
     }
   } finally {
     await page.close()

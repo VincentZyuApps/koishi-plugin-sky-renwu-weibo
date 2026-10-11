@@ -1,5 +1,12 @@
 import { Bot, Context, h, Session } from 'koishi'
-import { INCOMPLETE_IMAGE_BEHAVIOR, MSG_FORM, type Config, type MsgFormType } from './config'
+import {
+  INCOMPLETE_IMAGE_BEHAVIOR,
+  MSG_FORM,
+  PLATFORM_PUPPETEER_IMAGE_MODE,
+  type Config,
+  type MsgFormType,
+  type PlatformPuppeteerImageRule,
+} from './config'
 import {
   filterQQButtonModesForSession,
   filterQQButtonModesForTarget,
@@ -17,7 +24,7 @@ import {
 } from './qq/sender'
 import { formatDailyForward } from './templates/forward'
 import { formatDailyImageWithText } from './templates/image-with-text'
-import { renderDailyImage } from './templates/puppeteer-image'
+import { renderDailyImage, type RenderedDailyImage } from './templates/puppeteer-image'
 import { formatDailyQQMarkdown } from './templates/qq-markdown'
 import { formatDailyText } from './templates/text'
 import { formatDailyTextWithImage } from './templates/text-with-image'
@@ -189,17 +196,69 @@ async function sendPuppeteerImageMode(
   }
 
   await sendWithModeGuard(ctx, config, MSG_FORM.PUPPETEER_IMAGE, async () => {
-    logInfo(ctx, config, '', `开始渲染 Puppeteer 卡片图: type=${config.imageType}, width=${config.imageWidth}, quality=${config.screenshotQuality}`)
-    const renderedImage = await renderDailyImage(ctx, result, config, intro)
-    logInfo(ctx, config, '', `Puppeteer 卡片图渲染完成: base64Length=${renderedImage.base64.length}, size=${renderedImage.width}x${renderedImage.height}`)
+    const platformRule = resolvePlatformPuppeteerImageRule(config, session.platform)
+    const needSlices = platformRule?.mode === PLATFORM_PUPPETEER_IMAGE_MODE.SLICE
+    const renderedImage = await renderDailyImage(ctx, result, config, {
+      intro,
+      needSlices,
+      sliceHeight: platformRule?.sliceHeight,
+      overlapHeight: platformRule?.overlapHeight,
+    })
+    logInfo(ctx, config, '', `Puppeteer 卡片图渲染完成: base64Length=${renderedImage.base64.length}, size=${renderedImage.width}x${renderedImage.height}${renderedImage.slices ? `, slices=${renderedImage.slices.length}` : ''}`)
 
     if (hasAppendQQPuppeteerImageButtonMode(buttonModes)) {
       await sendQQPuppeteerImageWithButtons(ctx, session, config, renderedImage, intro)
       return
     }
 
-    await sendSessionMessage(session, config, toImageMessage(config, renderedImage.base64))
+    const content = buildPuppeteerImageMessageContent(config, renderedImage, platformRule)
+    await sendSessionMessage(session, config, content)
   })
+}
+
+function resolvePlatformPuppeteerImageRule(
+  config: Config,
+  platform?: string,
+): PlatformPuppeteerImageRule | undefined {
+  if (!platform) return undefined
+  const rules = Array.isArray(config.platformPuppeteerImageRules) ? config.platformPuppeteerImageRules : []
+  return rules.find((rule) => rule && rule.enabled !== false && rule.platform?.trim() === platform.trim())
+}
+
+function buildPuppeteerImageMessageContent(
+  config: Config,
+  renderedImage: RenderedDailyImage,
+  rule?: PlatformPuppeteerImageRule,
+) {
+  const mode = rule?.mode || PLATFORM_PUPPETEER_IMAGE_MODE.LONG
+
+  if (mode === PLATFORM_PUPPETEER_IMAGE_MODE.FILE) {
+    const ext = config.imageType === 'jpeg' ? 'jpg' : config.imageType
+    const today = new Intl.DateTimeFormat('zh-CN', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date()).replace(/\//g, '')
+    const filename = `sky-daily-${today}.${ext}`
+    return h.file(`data:image/${config.imageType};base64,${renderedImage.base64}`, {
+      filename,
+    })
+  }
+
+  if (mode === PLATFORM_PUPPETEER_IMAGE_MODE.SLICE && renderedImage.slices && renderedImage.slices.length > 1) {
+    const elements: any[] = []
+    for (const slice of renderedImage.slices) {
+      if (elements.length > 0) {
+        elements.push('\n')
+      }
+      elements.push(`✨ 今日任务卡片图 (第 ${slice.index + 1}/${slice.total} 部分)\n`)
+      elements.push(h.image(`data:image/${config.imageType};base64,${slice.base64}`))
+    }
+    return elements
+  }
+
+  return toImageMessage(config, renderedImage.base64)
 }
 
 function toImageMessage(config: Config, imageBase64: string) {
@@ -340,7 +399,14 @@ export async function sendDailyResultToTarget(
       if (!result.text && result.imageBuffers.length === 0) return skipMode(mode, '当前数据不足。')
       if (!ctx.puppeteer) return skipMode(mode, '当前 Koishi 未启用 puppeteer 服务。')
       return sendMode(mode, async () => {
-        const renderedImage = await renderDailyImage(ctx, result, config, intro)
+        const platformRule = resolvePlatformPuppeteerImageRule(config, target.bot.platform)
+        const needSlices = platformRule?.mode === PLATFORM_PUPPETEER_IMAGE_MODE.SLICE
+        const renderedImage = await renderDailyImage(ctx, result, config, {
+          intro,
+          needSlices,
+          sliceHeight: platformRule?.sliceHeight,
+          overlapHeight: platformRule?.overlapHeight,
+        })
         if (hasAppendQQPuppeteerImageButtonMode(buttonModes)) {
           try {
             await sendQQPuppeteerImageWithButtonsToTarget(ctx, target.bot, target.channelId, config, renderedImage, intro)
@@ -350,7 +416,8 @@ export async function sendDailyResultToTarget(
             logInfo(ctx, config, `主动推送 append-puppeteer-image 不可用，回退普通卡片图: ${message}`)
           }
         }
-        await sendTargetMessage(target, toImageMessage(config, renderedImage.base64))
+        const content = buildPuppeteerImageMessageContent(config, renderedImage, platformRule)
+        await sendTargetMessage(target, content)
       })
     }
 

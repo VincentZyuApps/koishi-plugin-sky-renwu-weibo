@@ -114,6 +114,24 @@ export interface ActivePushTarget {
   enabled: boolean
 }
 
+/** 📱 特定平台 Puppeteer 卡片图发送模式 */
+export const PLATFORM_PUPPETEER_IMAGE_MODE = {
+  LONG: 'long',
+  SLICE: 'slice',
+  FILE: 'file',
+} as const
+
+export type PlatformPuppeteerImageModeType =
+  typeof PLATFORM_PUPPETEER_IMAGE_MODE[keyof typeof PLATFORM_PUPPETEER_IMAGE_MODE]
+
+export interface PlatformPuppeteerImageRule {
+  platform: string
+  mode: PlatformPuppeteerImageModeType
+  sliceHeight: number
+  overlapHeight: number
+  enabled: boolean
+}
+
 // ====================
 // 📋 配置接口定义
 // ====================
@@ -195,6 +213,7 @@ export interface Config {
   useCustomFont: boolean
   autoDownloadFont: boolean
   imageFontPath: string
+  platformPuppeteerImageRules: PlatformPuppeteerImageRule[]
 
   // ==================
   // 🐛 调试配置字段
@@ -611,6 +630,47 @@ export const Config: Schema<Config> = Schema.intersect([
       .role('textarea', { rows: [2, 4] })
       .default(DEFAULT_LXGW_WENKAI_PATH)
       .description('🔤 Puppeteer 卡片图字体路径。默认展示 process.cwd()/data/fonts/LXGWWenKaiMono-Regular.ttf；运行时自动映射到 ctx.baseDir/data/fonts/LXGWWenKaiMono-Regular.ttf。留空则使用系统默认字体。'),
+    platformPuppeteerImageRules: Schema.array(Schema.object({
+      platform: Schema.string()
+        .default('telegram')
+        .description('平台标识 (如 telegram、discord)'),
+      mode: Schema.union([
+        Schema.const(PLATFORM_PUPPETEER_IMAGE_MODE.LONG).description(`【🖼️ ${PLATFORM_PUPPETEER_IMAGE_MODE.LONG}】长图片 (强制完整长图直发)`),
+        Schema.const(PLATFORM_PUPPETEER_IMAGE_MODE.SLICE).description(`【✂️ ${PLATFORM_PUPPETEER_IMAGE_MODE.SLICE}】图片切片 (按高度切分成多张图片)`),
+        Schema.const(PLATFORM_PUPPETEER_IMAGE_MODE.FILE).description(`【📁 ${PLATFORM_PUPPETEER_IMAGE_MODE.FILE}】文件图片 (以文件形式发送长图)`),
+      ])
+        .role('radio')
+        .default(PLATFORM_PUPPETEER_IMAGE_MODE.SLICE)
+        .description('发送模式'),
+      sliceHeight: Schema.number()
+        .min(1000)
+        .max(10000)
+        .step(500)
+        .default(5000)
+        .description('切片高度 (px)'),
+      overlapHeight: Schema.number()
+        .default(25)
+        .disabled()
+        .description('切片重叠高度 (px，固定 25px 防止切分文字)'),
+      enabled: Schema.boolean()
+        .default(true)
+        .description('是否启用'),
+    }))
+      .role('table')
+      .default([
+        {
+          platform: 'telegram',
+          mode: PLATFORM_PUPPETEER_IMAGE_MODE.SLICE,
+          sliceHeight: 5000,
+          overlapHeight: 25,
+          enabled: true,
+        },
+      ])
+      .description([
+        '📱 <b>特定平台 Puppeteer 卡片图发送规则表格</b>',
+        '针对 Telegram 等限制长图尺寸（宽+高 > 10000px 会报 <code>PHOTO_INVALID_DIMENSIONS</code>）的平台单独制定策略。',
+        '未在表格中配置的平台默认发送完整长图。',
+      ].join('<br/>')),
   }).description('🖼️ Puppeteer 卡片图配置'),
 
   // ==================
